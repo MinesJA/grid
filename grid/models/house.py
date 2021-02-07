@@ -1,10 +1,8 @@
-import uuid 
+from .node import Node
 
 
 # Demand Rate and supply rate in kw/hr
 class House(Node):
-
-    
 
     def __init__(self, demand_rate, supply_rate):
         """[summary]
@@ -13,6 +11,6 @@ class House(Node):
             demand_rate ([type]): [description]
             supply_rate ([type]): [description]
         """
-        self.id = uuid.uuid1()
+        super().__init__()
         self.demand_rate = demand_rate
         self.supply_rate = supply_rate

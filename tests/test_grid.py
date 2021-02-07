@@ -1,23 +1,41 @@
 import unittest
-from .grid import Grid
+from .context import grid
+
+from grid.models.grid import Grid
+from grid.models.node import Node
+from grid.models.house import House
+
 
 class TestGrid(unittest.TestCase):
 
     def test_create_grid(self):
-        Grid.new()
+        grid = Grid()
+        self.assertEqual(grid.nodes, {})
 
-        self.assertEqual('foo'.upper(), 'FOO')
+    def test_add_node(self):
+        grid = Grid()
 
-    def test_isupper(self):
-        self.assertTrue('FOO'.isupper())
-        self.assertFalse('Foo'.isupper())
+        node_a = House(1, 2)
+        node_b = House(1, 2)
+        node_c = House(1, 2)
 
-    def test_split(self):
-        s = 'hello world'
-        self.assertEqual(s.split(), ['hello', 'world'])
-        # check that s.split fails when the separator is not a string
-        with self.assertRaises(TypeError):
-            s.split(2)
+        grid.nodes = {
+            node_a: [node_b, node_c],
+            node_b: [node_a],
+            node_c: [node_a]
+        }
+
+        node_d = House(3, 4)
+
+        grid.add_node(node_d, [node_b, node_c])
+
+        self.assertListEqual(grid.nodes[node_b], [node_a, node_d])
+        self.assertListEqual(grid.nodes[node_c], [node_a, node_d])
+        self.assertListEqual(grid.nodes[node_d], [node_b, node_c])
+
+    def test_remove_node(self):
+        
+
 
 if __name__ == '__main__':
     unittest.main()
