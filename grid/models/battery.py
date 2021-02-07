@@ -1,6 +1,6 @@
 import uuid
 
-class Battery(object):
+class Battery(Node):
 
     def __init__(self, max_charge, charge, supply_rate):
         self.id = self.id = uuid.uuid1()

@@ -14,7 +14,9 @@ lines = [
     Line(house1, house2),
     Line(house1, house3),
     Line(house1, house5),
-    Line(house2, house3),
+    Line(house2, house3),\
     Line(house2, house4)
 ]
 
+
+# https://www.python-course.eu/graphs_python.php
