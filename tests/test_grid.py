@@ -4,6 +4,7 @@ from .context import grid
 from grid.models.grid import Grid
 from grid.models.node import Node
 from grid.models.house import House
+from grid.models.battery import Battery
 
 
 class TestGrid(unittest.TestCase):
@@ -13,11 +14,12 @@ class TestGrid(unittest.TestCase):
         self.assertEqual(grid.nodes, {})
 
     def test_add_node(self):
+
         grid = Grid()
 
         node_a = House(1, 2)
         node_b = House(1, 2)
-        node_c = House(1, 2)
+        node_c = Battery(1, 2, 3)
 
         grid.nodes = {
             node_a: [node_b, node_c],
@@ -34,7 +36,24 @@ class TestGrid(unittest.TestCase):
         self.assertListEqual(grid.nodes[node_d], [node_b, node_c])
 
     def test_remove_node(self):
-        
+
+        grid = Grid()
+
+        node_a = House(1, 2)
+        node_b = House(1, 2)
+        node_c = Battery(1, 2, 3)
+
+        grid.nodes = {
+            node_a: [node_b, node_c],
+            node_b: [node_a],
+            node_c: [node_a]
+        }
+
+        grid.remove_node(node_a)
+
+        self.assertListEqual(grid.nodes[node_b], [])
+        self.assertListEqual(grid.nodes[node_c], [])
+        self.assertFalse(node_a in grid.nodes)
 
 
 if __name__ == '__main__':
