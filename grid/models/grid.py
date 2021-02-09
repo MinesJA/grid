@@ -4,6 +4,8 @@ class Grid():
 
     def __init__(self):
         self.nodes = {}
+        self.drawing = {}
+        self.generating = {}    
 
     def add_node(self, node: 'Node', connections: List['Node']):
         for conn in connections:
@@ -23,8 +25,6 @@ class Grid():
         except KeyError as e:
             print('Node does not exist in grid.')
             print(e)
-
-        
          
 
 

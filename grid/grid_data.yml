@@ -1,0 +1,39 @@
+- Residential:
+    address: 1
+    supplyType: None
+    demandMultiple: 0.6
+    supplyMultiple: 0
+- Residential:
+    address: 2
+    supplyType: None
+    demandMultiple: 1.4
+    supplyMultiple: 0
+- Residential:
+    address: 3
+    supplyType: None
+    demandMultiple: 1
+    supplyMultiple: 5
+- Residential:
+    address: 4
+    supplyType: solar
+    demandMultiple: 0.5
+    supplyMultiple: 1.5
+- Residential:
+    address: 5
+    supplyType: solar
+    demandMultiple: 0.5
+    supplyMultiple: 1
+- Commercial:
+    address: 6
+    supplyType: wind
+    demandMultiple: 1.5
+    supplyMultiple: 1.2
+- Commercial:
+    address: 7
+    supplyType: solar
+    demandMultiple: 2
+    supplyMultiple: 1
+- Generator:
+    address: 8
+    supplyType: coal
+    supplyMultiple: 3
