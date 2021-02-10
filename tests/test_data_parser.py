@@ -6,7 +6,8 @@ from grid.services.data_parser import parse
 class TestDataParser(unittest.TestCase):
 
     def test_create_grid(self):
-        parse()
+        x = parse()
+        self.assertTrue(type(x) is list)
 
 
 if __name__ == '__main__':

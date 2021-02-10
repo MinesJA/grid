@@ -1,5 +1,6 @@
 from .node import Node
-
+from ..models.node import SupplyType
+# SupplyType(head).name
 
 class Residential(Node):
 
@@ -11,7 +12,7 @@ class Residential(Node):
             demand_multiple (float): [description]
             supply_multiple (float): [description]
         """
-        super().__init__()
+        super().__init__(address)
         self.supply_type = supply_type
         self.demand_multiple = demand_multiple
         self.supply_multiple = supply_multiple

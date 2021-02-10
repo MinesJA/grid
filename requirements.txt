@@ -1,4 +1,4 @@
 nose
 sphinx
 falcon
-pyyaml
+yaml

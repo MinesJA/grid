@@ -12,8 +12,7 @@ class Commercial(Node):
             demand_multiple (float): multiplied against avg demand rate
             supply_multiple (float): multiplied against avg supply rate for that type
         """
-        super().__init__()
-        self.address = address
+        super().__init__(address)
         self.supply_type = supply_type
         self.demand_rate = demand_rate
         self.supply_rate = supply_rate

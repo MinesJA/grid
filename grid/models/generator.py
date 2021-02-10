@@ -10,7 +10,6 @@ class Generator(Node):
             supply_type (string): kwH demand_rate
             supply_multiple (float): multiplied against avg supply rate for that type
         """
-        super().__init__()
-        self.address = address
+        super().__init__(address)
         self.supply_type = supply_type
         self.supply_rate = supply_rate

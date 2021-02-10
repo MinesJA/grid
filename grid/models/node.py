@@ -1,11 +1,18 @@
 import uuid
-from enum import Enum
+import Enum
 
 
-class Node:
+NODE_TYPES = {
+    'Residential': Residential,
+    'Commericial': Commercial,
+    'Generator': Generator
+}
 
-    def __init__(self):
+class Node():
+
+    def __init__(self, address):
         self.id = uuid.uuid1()
+        self.address = address
 
     def __eq__(self, other):
         """Overrides the default implementation"""
@@ -17,7 +24,8 @@ class Node:
         """Overrides the default implementation"""
         return id(self.id)
 
-
-class SupplyType(enum):
+class SupplyType(Enum):
     SOLAR = 'solar'
     WIND = 'wind'
+    COAL = 'coal'
+    NUCLEAR = 'nuclear'

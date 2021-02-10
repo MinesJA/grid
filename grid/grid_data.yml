@@ -1,39 +1,60 @@
+# 1 -- 2 -- 3
+# |    |    |
+# 4 -- 5 -- 6
+# |    |    |
+# 7 -- 8 -- 9
+
+
 - Residential:
     address: 1
     supplyType: None
     demandMultiple: 0.6
     supplyMultiple: 0
+    connections: [2,4]
 - Residential:
     address: 2
     supplyType: None
     demandMultiple: 1.4
     supplyMultiple: 0
+    connections: [1,3,5]
 - Residential:
     address: 3
     supplyType: None
     demandMultiple: 1
     supplyMultiple: 5
+    connections: [2,6]
 - Residential:
     address: 4
     supplyType: solar
     demandMultiple: 0.5
     supplyMultiple: 1.5
+    connections: [1,5,7]
 - Residential:
     address: 5
     supplyType: solar
     demandMultiple: 0.5
     supplyMultiple: 1
+    connections: [2,4,6,8]
 - Commercial:
     address: 6
     supplyType: wind
     demandMultiple: 1.5
     supplyMultiple: 1.2
+    connections: [3,6]
 - Commercial:
     address: 7
     supplyType: solar
     demandMultiple: 2
     supplyMultiple: 1
-- Generator:
+    connections: [4,8]
+- Commercial:
     address: 8
+    supplyType: solar
+    demandMultiple: 2
+    supplyMultiple: 1
+    connections: [7,5,9]
+- Generator:
+    address: 9
     supplyType: coal
     supplyMultiple: 3
+    connections: [6,8]
