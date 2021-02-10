@@ -1,6 +1,5 @@
 from .node import Node
-from ..models.node import SupplyType
-# SupplyType(head).name
+
 
 class Residential(Node):
 
@@ -16,3 +15,7 @@ class Residential(Node):
         self.supply_type = supply_type
         self.demand_multiple = demand_multiple
         self.supply_multiple = supply_multiple
+
+    @classmethod
+    def build(h):
+        

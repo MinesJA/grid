@@ -1,12 +1,6 @@
 import uuid
-import Enum
+import enum
 
-
-NODE_TYPES = {
-    'Residential': Residential,
-    'Commericial': Commercial,
-    'Generator': Generator
-}
 
 class Node():
 
@@ -24,8 +18,4 @@ class Node():
         """Overrides the default implementation"""
         return id(self.id)
 
-class SupplyType(Enum):
-    SOLAR = 'solar'
-    WIND = 'wind'
-    COAL = 'coal'
-    NUCLEAR = 'nuclear'
+
