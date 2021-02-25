@@ -11,12 +11,14 @@ import argparse
 import sys
 
 
+# start --address '127.0.0.1' --port '8080'
+# 1) create Node with address and port
+# 2) start
 
 
 # Todo: Build node with address and port, start server with same address and port
 
 def create_app(task_service, node):
-
     api = application = falcon.API()
     power_resource = PowerResource(task_service, node)
     node_resource = NodeResource(task_service, node)
@@ -26,14 +28,19 @@ def create_app(task_service, node):
 
 
 def get_app():
+    task_service = TaskService()
+    args = parse_args()
+    id = uuid.uuid1()
+    print(str(id))
+    node = Node(id=id, address=args.address, port=args.port)
+    return create_app(task_service, node)
+
+
+def parse_args():
     parser = argparse.ArgumentParser(description='Start a node')
     parser.add_argument('--address', '-a')
     parser.add_argument('--port', '-p')
-    args = parser.parse_args(sys.argv[1:])
-
-    task_service = TaskService()
-    node = Node(address=args.address, port=args.port)
-    return create_app(task_service, node)
+    return parser.parse_args(sys.argv[1:])
 
 
 def number_of_workers():
@@ -41,13 +48,17 @@ def number_of_workers():
 
 
 def get_options():
+    args = parse_args()
     return {
-        'bind': '%s:%s' % ('127.0.0.1', '8080'),
+        'bind': '%s:%s' % (args.address, args.port),
         'workers': number_of_workers(),
+        'reload': True,
+        'debug': True,
+        'loglevel': 'debug'
     }
 
 
-class StandaloneApplication(gunicorn.app.base.BaseApplication):
+class StandaloneApplication(BaseApplication):
 
     def __init__(self, app, options=None):
         self.options = options or {}
@@ -65,5 +76,4 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
 
 
 if __name__ == '__main__':
-
-    StandaloneApplication(get_app(), options).run()
+    StandaloneApplication(get_app(), get_options()).run()
