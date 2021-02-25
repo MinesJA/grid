@@ -2,3 +2,4 @@ nose
 sphinx
 falcon
 yaml
+Queue
