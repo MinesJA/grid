@@ -8,9 +8,15 @@ from grid.models.node import Node
 import multiprocessing
 import gunicorn.app.base
 import argparse
+import sys
 
+
+
+
+# Todo: Build node with address and port, start server with same address and port
 
 def create_app(task_service, node):
+
     api = application = falcon.API()
     power_resource = PowerResource(task_service, node)
     node_resource = NodeResource(task_service, node)
@@ -20,8 +26,13 @@ def create_app(task_service, node):
 
 
 def get_app():
+    parser = argparse.ArgumentParser(description='Start a node')
+    parser.add_argument('--address', '-a')
+    parser.add_argument('--port', '-p')
+    args = parser.parse_args(sys.argv[1:])
+
     task_service = TaskService()
-    node = Node()
+    node = Node(address=args.address, port=args.port)
     return create_app(task_service, node)
 
 
@@ -29,10 +40,11 @@ def number_of_workers():
     return (multiprocessing.cpu_count() * 2) + 1
 
 
-class App():
-
-
-    parser = argparse.ArgumentParser(description='Start a node')
+def get_options():
+    return {
+        'bind': '%s:%s' % ('127.0.0.1', '8080'),
+        'workers': number_of_workers(),
+    }
 
 
 class StandaloneApplication(gunicorn.app.base.BaseApplication):
@@ -53,8 +65,5 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
 
 
 if __name__ == '__main__':
-    options = {
-        'bind': '%s:%s' % ('127.0.0.1', '8080'),
-        'workers': number_of_workers(),
-    }
+
     StandaloneApplication(get_app(), options).run()
