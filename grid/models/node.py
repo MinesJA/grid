@@ -26,8 +26,19 @@ class Node():
             node (Node): node sibling instance
         """
         self.siblings.update({node.id: node})
-        data = {'nodes': [{'id': self.id, 'address': self.address, 'port': self.port}]}
+        data = {
+            'nodes': [{'id': str(self.id), 'address': self.address, 'port': self.port}]
+        }
         requests.put(node._format_url('nodes'), data=data)
+
+    def update_siblings(self):
+        now = time.time()
+        data = {
+            'msgId': hash((now, self.uuid)),
+            'net': self.net
+        }
+        for id, node in self.siblings.items():
+            requests.put(node._format_url('power'), data=data)
 
     def adj_production(self, adjustment):
         self.production += adjustment
@@ -39,19 +50,10 @@ class Node():
 
     def adj_net(self, adjustment):
         self.net += adjustment
-    
+
     def forward_message(self, msg):
         for node in self.siblings:
             requests.put(node._format_url('power'), data=msg)
-
-    def update_siblings(self):
-        now = time.time()
-        data = {
-            'msgId': hash((now, self.uuid)),
-            'net': self.net
-        }
-        for node in self.siblings:
-            requests.put(node._format_url('power'), data=data)
 
     def _format_url(self, route: str):
         return f'http://{self.address}:{self.port}/{route}'

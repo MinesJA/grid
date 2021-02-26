@@ -6,14 +6,8 @@ from grid.resources.nodeResource import NodeResource
 from grid.services.task_service import TaskService
 from grid.models.node import Node
 import multiprocessing
-import gunicorn.app.base
 import argparse
 import sys
-
-
-# start --address '127.0.0.1' --port '8080'
-# 1) create Node with address and port
-# 2) start
 
 
 # Todo: Build node with address and port, start server with same address and port
