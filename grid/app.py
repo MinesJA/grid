@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import falcon
 from .images import Resource
 
