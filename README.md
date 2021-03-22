@@ -1,11 +1,17 @@
 # Grid
-A prototype of a distribtued, electric smart-grid using the [Actor Model](https://en.wikipedia.org/wiki/Actor_model) as a basis for how nodes interact with each other. A node represents an entity, connected to the grid, that can either produce or consume energy or both (a house with or without a solar panel, a business, a power plant, etc.). Any one node should know exactly how much energy it is both producing and/or consuming, as well as the net energy of the grid as whole. Nodes should not know the specific consumption or production values of any other nodes in the grid.
+A prototype of a distribtued, electric smart-grid implemented using the [Actor Model](https://en.wikipedia.org/wiki/Actor_model). A node represents an entity, connected to the grid, that can either produce energy, consume energy, or both (for example, a house with or without a solar panel, a business, a power plant, etc.). Any one node should know exactly how much energy it is both producing and/or consuming, as well as the net energy of the grid as a whole. Nodes should not know the specific consumption or production values of any other nodes in the grid.
 
 Run a Mock Grid
 ===============
 Fork and clone the repo
+CD into the directory
+pip install -r requirements.txt
+Run:
+`./scripts/run.sh`
+When prompted, enter number of sample nodes you'd like to run
 
-Run the scripts/run.sh script to run 4 sample nodes, connected to each other:
+
+
 
 
 Get the current net energy from any of the nodes like so: 
