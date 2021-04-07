@@ -7,14 +7,26 @@ SENDER = 'sender'
 
 
 def deserialize(type, message):
+    """Creates a Message object from a type
+    and message dict. Uses factory pattern.
+
+        https://realpython.com/factory-method-python/
+
+    Args:
+        type (str): type of message
+        message (dict): dict of info
+
+    Returns:
+        Message: Message based type
+    """
     deserializer = get_deserializer(type)
     return deserializer(message)
 
 
 def get_deserializer(type):
-    if type == 'AddSibling':
+    if type == 'addsibling':
         return _deserialize_to_addsibling
-    elif type == 'UpdateNet':
+    elif type == 'updatenet':
         return _deserialize_to_updatenet
     else:
         raise ValueError(type)
@@ -30,10 +42,10 @@ def _deserialize_to_updatenet(message):
 
 class Message:
     def __init__(self, id):
-        """[summary]
+        """Base class for Message objects.
 
         Args:
-            id ([type]): [description]
+            id (uuid1): [description]
         """
         self.id = id
 

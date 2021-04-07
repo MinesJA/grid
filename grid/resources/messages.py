@@ -10,10 +10,10 @@ from grid.models.message import deserialize, Message
 
 class Messages():
 
-    def __init__(self, builder):
-        self.builder = builder
+    def __init__(self, node_builder):
+        self.node_builder = node_builder
 
-    async def on_get(self, req, resp):
+    async def on_get_ask(self, req, resp, type):
         """Should call 'ask' of master node and return result
             in response. 
 
@@ -22,8 +22,8 @@ class Messages():
             resp ([type]): [description]
         """
         # TODO: Need to deserialize this to a message
-        
-        media = await req.get_media()
+
+        msg = await req.get_media()
         # {
         #  id: 'msg123',
         #  type: 'AddSibling',
@@ -33,32 +33,57 @@ class Messages():
         # }
         # AddSibling
 
-        import pdb; pdb.set_trace()
+        import pdb
+        pdb.set_trace()
 
-        node = await self.builder.get_node(self.config)
-        import pdb; pdb.set_trace()
+        node = await self.node_builder.get_node(self.config)
 
-        result = node.ask(message)
-        
-        f'Successfully asked {node.id} with {message.id}'
+        result = node.ask(msg)
+
+        f'Successfully asked {node.id} with {msg.id}'
 
         resp.media = {'result': ''}
         resp.status = falcon.HTTP_200
 
-
-    async def on_put(self, req, resp, type):
+    async def on_get_tell(self, req, resp, type):
         """Should call 'tell' of master node and let 
-        the response be a 200
+        the response be a 200.
 
         Args:
-            req ([type]): [description]
-            resp ([type]): [description]
+            req (Request): [description]
+            resp (Response): [description]
+            type (str): [description]
         """
-        
+
         msg = await req.get_media()
+
+        import pdb
+        pdb.set_trace()
 
         msg_obj = deserialize(type, msg)
 
-        node = await self.builder.get_node(self.config)
+        import pdb
+        pdb.set_trace()
+
+        node = await self.node_builder.get_node(self.config)
         node.tell(msg_obj)
         resp.status = falcon.HTTP_200
+
+
+# def on_put_siblings(self, req, resp):
+#         """Add a sibling to Node
+
+#         Args:
+#             req ([type]): [description]
+#             resp ([type]): [description]
+#         """
+#         sib_addr, sib_port = itemgetter('address', 'port')(req.media)
+#         sibling = Node(address=sib_addr, port=sib_port)
+#         self.node.add_sibling(sibling)
+
+#         print(
+#             f'({self.node.full_address}): Adding sibling with address {sib_addr}:{sib_port}')
+
+#         data = {'msg': f'Added sibgling: {sibling.full_address}'}
+#         # resp.media  = json.dumps(data, ensure_ascii=False)
+#         resp.media = data

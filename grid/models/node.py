@@ -90,13 +90,8 @@ class Node(Actor):
         for node in self.siblings.values():
             requests.put(node._format_url('net'), data=data)
 
-    def adj_production(self, adjustment):
-        self.production += adjustment
-        self.net += adjustment
-
-    def adj_consumption(self, adjustment):
-        self.consumption += adjustment
-        self.net -= adjustment
+    def update_energy(self, consumption: int, production: int, ):
+        pass
 
     def adj_net(self, adjustment):
         self.net += adjustment
