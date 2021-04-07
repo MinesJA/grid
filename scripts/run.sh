@@ -6,8 +6,10 @@
 # Output the stdout from each to terminal
 # Kill each server if ctrl+c is pressed
 
-echo "Enter the number of nodes you'd like to start"
-read usrIn
+# echo "Enter the number of nodes you'd like to start"
+# read usrIn
+
+nodes=4
 i=0
 
 
@@ -15,11 +17,63 @@ i=0
 # TODO: Better output handling, colorize different nodes?
 # TODO: Better sigint handling
 
-while [ $i -lt $usrIn ]; do
-    ((i++))
-    echo "Starting Node on: 127.0.0.1:808$i"
-    python -m grid.app -a "127.0.0.1" -p "808$i" &
-done
+arrVar1=()
+arrVar2=()
+
+
+python -m grid.app -a "127.0.0.1" -p "8080" -1 "n1" # NodeA
+python -m grid.app -a "127.0.0.1" -p "8081" # NodeB
+python -m grid.app -a "127.0.0.1" -p "8082" # NodeC
+python -m grid.app -a "127.0.0.1" -p "8083" # NodeD
+
+
+curl -X PUT -d arg=val -d arg2=val2 127.0.0.1:8080
+curl -X PUT -H "Content-Type: application/json" -d '{"nodes": [{  }}' "YOUR_URI"
+  -d '{"name" :1, "url_name": "example" }}' \
+
+
+  {'address': self.address, 'port': self.port}
+
+'nodes': [{'address': self.address, 'port': self.port}]
+
+
+{"nodes": [
+	{"address": "127.0.0.1", "port": "8081"},
+	{"address": "127.0.0.1", "port": "8083"}
+	]
+} #NodeA siblings
+
+{"nodes": [
+	{"address": "127.0.0.1", "port": "8080"},
+	{"address": "127.0.0.1", "port": "8082"}
+	]
+} #NodeB siblings
+
+{"nodes": [
+	{"address": "127.0.0.1", "port": "8081"},
+	{"address": "127.0.0.1", "port": "8083"}
+	]
+} #NodeC siblings
+
+{"nodes": [
+	{"address": "127.0.0.1", "port": "8082"},
+	{"address": "127.0.0.1", "port": "8080"}
+	]
+} #NodeD siblings
+
+
+
+# while [ $i -lt $usrIn ]; do
+#     ((i++))
+#     echo "Starting Node on: 127.0.0.1:808$i"
+#     python -m grid.app -a "127.0.0.1" -p "808$i" &
+#     arrVar+=("808$i")
+# done
+
+
+
+
+
 
 wait
 

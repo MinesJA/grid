@@ -7,6 +7,16 @@ from unittest.mock import Mock, patch
 
 class TestNode(unittest.TestCase):
 
+    def test_create_node(self):
+        address = '123.123.123'
+        port = '8080'
+        id = hash(address, port)
+
+        node = Node(address, port)
+
+        self.assertEqual(node.id, id)
+        self.assertEqual(node.id, id)
+
     @patch('grid.models.node.requests.put')
     def test_add_sibling(self, mock_put):
         mock_put.return_value.ok = True

@@ -1,5 +1,7 @@
 nose
 sphinx
 falcon
-yaml
-Queue
+gunicorn
+httpie
+uvicorn
+aiohttp
