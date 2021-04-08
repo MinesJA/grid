@@ -4,9 +4,8 @@ from queue import Queue
 
 class Actor:
 
-    def __init__(self, id, task_manager):
+    def __init__(self, id):
         self.id = id
-        self.task_manager = task_manager
         self.running = False
 
     async def start(self):
@@ -15,7 +14,7 @@ class Actor:
 
     def stop(self):
         self.running = False
-    
+
     def is_stopped(self):
         not self.running
 

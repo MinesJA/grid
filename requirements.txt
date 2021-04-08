@@ -6,4 +6,6 @@ httpie
 uvicorn
 aiohttp
 pytest
+pytest-asyncio
+pytest-mock
 pep8

@@ -2,6 +2,7 @@ class NodeProxy:
 
     def __init__(self, id: str, address: str, port: str):
         self.id = id
+        self.full_address = f'{address}:{port}'
         self.address = address
         self.port = port
 
@@ -12,5 +13,3 @@ class NodeProxy:
 
     def __hash__(self):
         return id(self.id)
-
-        

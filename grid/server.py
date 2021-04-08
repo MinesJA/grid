@@ -1,19 +1,20 @@
 from falcon import asgi
 import argparse
 from grid.resources.messages import Messages
-from grid.models.node import NodeBuilder
+from grid.resources.nodes import Nodes
 
 
-def create_app(args):
+def create_app(node_builder):
     app = asgi.App()
-    builder = NodeBuilder(id=args.id, address=args.address,
-                          port=args.port, pro=10, con=5)
-    messages = Messages(builder)
+
+    messages = Messages(node_builder)
+    nodes = Nodes(node_builder)
+
     app.add_route('/ask/{type}', messages, suffix='ask')
     app.add_route('/tell/{type}', messages, suffix='tell')
 
-    app.add_route('/nodes/siblings', messages, suffix='siblings')
-    app.add_route('/nodes/energy', messages, suffix='energy')
+    app.add_route('/nodes/siblings', nodes, suffix='siblings')
+    app.add_route('/nodes/energy', nodes, suffix='energy')
     return app
 
 

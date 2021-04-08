@@ -1,6 +1,3 @@
-import time
-import json
-import logging
 import falcon
 from grid.models.node import Node
 from operator import itemgetter
@@ -33,10 +30,7 @@ class Messages():
         # }
         # AddSibling
 
-        import pdb
-        pdb.set_trace()
-
-        node = await self.node_builder.get_node(self.config)
+        node = await self.node_builder.get(self.config)
 
         result = node.ask(msg)
 
@@ -57,15 +51,9 @@ class Messages():
 
         msg = await req.get_media()
 
-        import pdb
-        pdb.set_trace()
-
         msg_obj = deserialize(type, msg)
 
-        import pdb
-        pdb.set_trace()
-
-        node = await self.node_builder.get_node(self.config)
+        node = await self.node_builder.get(self.config)
         node.tell(msg_obj)
         resp.status = falcon.HTTP_200
 

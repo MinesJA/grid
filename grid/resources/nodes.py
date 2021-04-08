@@ -3,6 +3,10 @@ from grid.models.node import Node
 from operator import itemgetter
 
 
+CONSUMPTION = 'consumption'
+PRODUCTION = 'production'
+
+
 class Nodes:
     """The Resource for all Node related info. All requests
     must provide proper authorization. Intended for the actual
@@ -17,12 +21,15 @@ class Nodes:
     async def on_get_siblings(self, req, resp):
         """Get all siblings of a node.
 
+        TODO: Must be called with authentication.
+
         Args:
             req (Request): Falcon Request object
             resp (Response): Falcon Response object
         """
-        node = await self.node_builder.get_node(self.config)
+        node = await self.node_builder.get()
 
+        # TODO: This type of serialization should be moved to node
         resp.media = {'siblings': [
             sibling.full_address for sibling in node.siblings.values()]}
 
@@ -30,23 +37,18 @@ class Nodes:
         """Get all energy related values
         from specific node.
 
-        Must be called with authentication.
+        TODO: Must be called with authentication.
 
-        TODO: Implement requesting specifics values
-        for exmaple: only consumption, or production
+        TODO: Implement requesting specific values
+            ie. only consumption or production
 
         Args:
             req (Request): Falcon Request object
             resp (Response): Falcon Response object
         """
-        node = await self.node_builder.get_node(self.config)
-
+        node = await self.node_builder.get()
         # TODO: Serializer...
-        data = {  # TODO: I think there's a way to send UUIDs in Falcon...
-            'id': str(node.id),
-            'production': node.production,
-            'consumption': node.consumption,
-            'net': node.net}
+        data = node.get_energy()
 
         resp.body = json.dumps(data, ensure_ascii=False)
 
@@ -67,9 +69,9 @@ class Nodes:
             req (Request): Falcon Request object
             resp (Response): Falcon Response object
         """
-        node = await self.node_builder.get_node(self.config)
+        node = await self.node_builder.get()
 
         media = await req.get_media()
-        consumption = media.get('consumption')
-        production = media.get('production')
-        node.update_energy(consumption, production)
+        node.update_energy(media.get(CONSUMPTION), media.get(PRODUCTION))
+
+        resp.body = json.dumps(node.get_energy(), ensure_ascii=False)

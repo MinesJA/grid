@@ -8,28 +8,30 @@ class NodeBuilder():
 
     _instance = None
 
-    def __init__(self, id: str, address: str, port: str, pro: int, con: int):
+    def __init__(self, id: str, address: str, port: str, production: int, consumption: int):
         self.id = id
         self.address = address
         self.port = port
-        self.pro = pro
-        self.con = con
+        self.production = production
+        self.consumption = consumption
 
-    async def get_node(self, config):
+    async def get(self):
         if self._instance is None:
-            node = Node(config.id, config.address,
-                        config.port, config.pro, config.con)
+            node = Node(self.id, self.address,
+                        self.port, self.production, self.consumption)
             self._instance = await node.start()
         elif self._instance.is_stopped():
-            self._instance = await self._instance.start()
+            await self._instance.start()
         return self._instance
 
 
 class Node(Actor):
 
-    def __init__(self, id: str, address: str, port: str, pro: int, con: int):
-        """Builds a Node object. Net describes the net energy output of the entire grid.
-        If no siblings, then net is simply the net output of the invididual node.
+    def __init__(self, id: str, address: str, port: str,
+                 production: int, consumption: int):
+        """Builds a Node object. Net describes the net energy
+        output of the entire grid. If no siblings, then net
+        is simply the net output of the invididual node.
 
         Args:
             address (str): http address of the node (ex. '123.123.123')
@@ -40,25 +42,26 @@ class Node(Actor):
         self.port = port
         self.full_address = f'{address}:{port}'
         self.siblings = {}
-        self.pro = pro
-        self.con = con
+        self.production = production
+        self.consumption = consumption
 
-        self.net = pro - con
+        self.net = production - consumption
 
     async def on_receive(self, message):
         if isinstance(message, AddSibling):
             await self.add_sibling(message.sibling)
         elif isinstance(message, UpdateNet):
-            self.update_net()
+            await self.update_net()
         elif isinstance(message, Forward):
-            self.forward(message)
+            await self.forward(message)
         else:
             self.print(f'{self.id}: Did not recognize message')
 
     async def add_sibling(self, sibling):
-        """Adds a sibling node to the siblings dict. Then sends an AddSibling message to 
-        the sibling node with it's own info to maintain a bidirectional graph. 
-        Then sends a request to update the grids net output.
+        """Adds a sibling node to the siblings dict. Then sends an
+        AddSibling message to the sibling node with it's own info to
+        maintain a bidirectional graph. Then sends a request to update
+        the grids net output.
 
         Args:
             sibling (Node): node sibling instance
@@ -66,18 +69,18 @@ class Node(Actor):
         if sibling.id not in self.siblings:
             self.print(f'{self.id}: Adding {sibling.id} as sibling')
             self.siblings[sibling.id] = sibling
+
             sibling.tell(AddSibling(self, False))
 
             sibling.tell(AddSibling(self.id, self))
 
         if sibling.id not in self.node.siblings:
             self.siblings.update({sibling.id: sibling})
-            AddSibling()
 
             requests.put(sibling._format_url('siblings'),
                          data={'address': self.address, 'port': self.port})
 
-            self.update_siblings(net_adjustment)
+            self.update_siblings()
 
     def update_siblings(self):
         now = time.time()
@@ -90,11 +93,20 @@ class Node(Actor):
         for node in self.siblings.values():
             requests.put(node._format_url('net'), data=data)
 
-    def update_energy(self, consumption: int, production: int, ):
-        pass
+    def update_energy(self, consumption, production):
+        # TODO: Refactor to one liners
+        if consumption:
+            self.consumption = consumption
+        if production:
+            self.production = production
 
-    def adj_net(self, adjustment):
-        self.net += adjustment
+        self.net = self.production - self.consumption
+        # TODO: Then shoud update siblings
+
+    def get_energy(self):
+        return {'production': self.production,
+                'consumption': self.consumption,
+                'net': self.net}
 
     def handle_net_sync_req(self, msg):
         if msg.id not in self.node.messages:
@@ -113,7 +125,6 @@ class Node(Actor):
         xyz["identity"] = abc["id"]
 
         for node in self.siblings:
-
             requests.put(node._format_url('power'), data=msg)
 
     def _generate_msg(self, timeStamp, latest_net):
@@ -125,13 +136,12 @@ class Node(Actor):
         }
 
     def _calculate_net(self, other_net):
-        """Returns personal net added 
-        to incoming net.
+        """Returns personal net added to incoming net.
 
         Args:
             other_net (int): net to be added to personal net
         """
-        return self.production + self.consumption + other_net
+        return self.productionduction + self.consumptionsumption + other_net
 
     def _format_url(self, route: str):
         return f'http://{self.address}:{self.port}/{route}'
