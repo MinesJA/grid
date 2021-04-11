@@ -1,28 +1,7 @@
 from grid.models.actor import Actor
-from grid.models.message import AddSibling, UpdateNet, Forward
+from grid.models.message import AddSibling, UpdateNet, UpdateEnergy, Forward
 import requests
 import time
-
-
-class NodeBuilder():
-
-    _instance = None
-
-    def __init__(self, id: str, address: str, port: str, production: int, consumption: int):
-        self.id = id
-        self.address = address
-        self.port = port
-        self.production = production
-        self.consumption = consumption
-
-    async def get(self):
-        if self._instance is None:
-            node = Node(self.id, self.address,
-                        self.port, self.production, self.consumption)
-            self._instance = await node.start()
-        elif self._instance.is_stopped():
-            await self._instance.start()
-        return self._instance
 
 
 class Node(Actor):
@@ -48,8 +27,12 @@ class Node(Actor):
         self.net = production - consumption
 
     async def on_receive(self, message):
-        if isinstance(message, AddSibling):
-            await self.add_sibling(message.sibling)
+        import pdb
+        pdb.set_trace()
+        if isinstance(message, UpdateEnergy):
+            await self.update_energy(message)
+        elif isinstance(message, AddSibling):
+            await self.add_sibling(message)
         elif isinstance(message, UpdateNet):
             await self.update_net()
         elif isinstance(message, Forward):
@@ -93,12 +76,15 @@ class Node(Actor):
         for node in self.siblings.values():
             requests.put(node._format_url('net'), data=data)
 
-    def update_energy(self, consumption, production):
+    def update_energy(self, message: UpdateEnergy):
         # TODO: Refactor to one liners
-        if consumption:
-            self.consumption = consumption
-        if production:
-            self.production = production
+        import pdb
+        pdb.set_trace()
+
+        if message.consumption:
+            self.consumption = message.consumption
+        if message.production:
+            self.production = message.production
 
         self.net = self.production - self.consumption
         # TODO: Then shoud update siblings

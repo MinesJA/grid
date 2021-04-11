@@ -1,7 +1,7 @@
 import pytest
 from falcon import testing
 from grid.server import create_app
-from grid.models.node import Node
+from grid.models.node import Node, NodeBuilder
 from unittest.mock import AsyncMock
 from unittest import TestCase
 from grid.models.nodeProxy import NodeProxy
@@ -17,8 +17,13 @@ def mock_builder():
 
 
 @pytest.fixture()
-def client(mock_builder):
-    app = create_app(mock_builder)
+def builder():
+    return NodeBuilder('n1', '111.222.333', 1234, 10, 5)
+
+
+@pytest.fixture()
+def client(node_builder):
+    app = create_app(node_builder)
     client = testing.TestClient(app)
     return client
 
@@ -36,12 +41,3 @@ def test_get_energy(client):
     assert resp.status == '200 OK'
     TestCase().assertDictEqual(resp.json,
                                {'production': 10, 'consumption': 5, 'net': 5})
-
-
-def test_patch_energy(client):
-    resp = client.simulate_patch('/nodes/energy',
-                                 json={'production': 5})
-
-    assert resp.status == '200 OK'
-    TestCase().assertDictEqual(resp.json,
-                               {'production': 5, 'consumption': 5, 'net': 0})

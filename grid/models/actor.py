@@ -1,11 +1,12 @@
 from grid.models.envelope import Envelope
-from queue import Queue
+from asyncio import Queue
 
 
 class Actor:
 
     def __init__(self, id):
         self.id = id
+        self.inbox = Queue(maxsize=100)
         self.running = False
 
     async def start(self):
@@ -19,6 +20,8 @@ class Actor:
         not self.running
 
     async def tell(self, message):
+        import pdb
+        pdb.set_trace()
         await self.inbox.put(message)
 
     async def ask(self, message):
@@ -42,9 +45,3 @@ class Actor:
     def on_receive(self, message):
         # To be implemented by child class
         pass
-
-    async def process_messages(self):
-        while self.running:
-            msg = await self.inbox.get()
-            await self.on_receive(msg)
-            self.inbox.task_done()

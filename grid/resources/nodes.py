@@ -3,14 +3,10 @@ from grid.models.node import Node
 from operator import itemgetter
 
 
-CONSUMPTION = 'consumption'
-PRODUCTION = 'production'
-
-
 class Nodes:
-    """The Resource for all Node related info. All requests
-    must provide proper authorization. Intended for the actual
-    owner of the Node, not for communiation between other Nodes.
+    """The Resource for all Node related info. Should only be used
+    for introspection as it bypasses the message processing queue.
+    Should never be used for setting values.
 
     TODO: Implement Auth
     """
@@ -51,27 +47,3 @@ class Nodes:
         data = node.get_energy()
 
         resp.body = json.dumps(data, ensure_ascii=False)
-
-    async def on_patch_energy(self, req, resp):
-        """Updates a nodes consumption and production values.
-        Will automatically trigger attemp to update all other Nodes
-        net values.
-
-        Ex. body:
-            {
-                production: 5,
-                consumption: 10
-            }
-
-        Must be called withauthentication.
-
-        Args:
-            req (Request): Falcon Request object
-            resp (Response): Falcon Response object
-        """
-        node = await self.node_builder.get()
-
-        media = await req.get_media()
-        node.update_energy(media.get(CONSUMPTION), media.get(PRODUCTION))
-
-        resp.body = json.dumps(node.get_energy(), ensure_ascii=False)
