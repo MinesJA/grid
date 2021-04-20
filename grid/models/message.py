@@ -1,76 +1,41 @@
 from uuid import uuid1
+import datetime
+from collections import namedtuple
 
 TYPE = 'type'
 SIBLING = 'sibling'
 REQUIRES_RESPONSE = 'requires_response'
 SENDER = 'sender'
 
-
-# TODO:
-"""How I'm thinking about auth:
-    Only a Node's IoT devices should be able to update
-    it's own energy. That would constitute one type of auth.
-    However, there should prob be another type of check for other
-    messages. For example, receiving an UpdateNet message should prob
-    only be able to come from sibling nodes? Whereas AddSibling
-    should be able to come from any Node.
-
-    For now, we'll use Auth to mean Authorized as an IoT belonging
-    to the Node (think solar panel readings, smart meter, etc.)
-"""
-
-
-def deserialize(type, message):
-    """Creates a Message object from a type
-    and message dict. Uses factory pattern.
-
-        https://realpython.com/factory-method-python/
-
-    Args:
-        type (str): type of message
-        message (dict): dict of info
-
-    Returns:
-        Message: Message based type
-    """
-    deserializer = get_deserializer(type)
-    return deserializer(message)
-
-
-def get_deserializer(type):
-    if type == 'updateenergy':
-        return _deserialize_to_updateenergy
-    elif type == 'addsibling':
-        return _deserialize_to_addsibling
-    elif type == 'updatenet':
-        return _deserialize_to_updatenet
-    else:
-        raise ValueError(type)
-
-
-def _deserialize_to_updateenergy(message):
-    return UpdateEnergy(id=uuid1(), production=message.get('production'),
-                        consumption=message.get('consumption'))
-
-
-def _deserialize_to_addsibling(message):
-    return AddSibling(id=uuid1(), sibling=message.get('sibling'),
-                      requires_response=message.get('requires_response'))
-
-
-def _deserialize_to_updatenet(message):
-    return UpdateNet(id=uuid1(), sender=message.get('sender'))
+Envelope = namedtuple(
+    'Envelope', ['envelope_id', 'message', 'reply_to', 'response'])
 
 
 class Message:
-    def __init__(self, id, requires_auth):
+    def __init__(self, id, timestamp, requires_auth):
         """Base class for Message objects.
 
         Args:
             id (uuid1): [description]
         """
         self.id = id
+        self.timestamp = timestamp
         self.requires_auth = requires_auth
+
+    @staticmethod
+    def deserialize(message):
+        """To be implmented by child message class
+
+        TODO: Figure out what exactly the Falcon media
+        obj is
+
+        TODO: Update to this:
+        https://stackabuse.com/pythons-classmethod-and-staticmethod-explained/
+
+        Args:
+            message (media_obj): Falcon media object
+        """
+        pass
 
     def serialize(self):
         """To be implmented by child message class"""
@@ -93,22 +58,32 @@ class Message:
 
 class UpdateNet(Message):
 
-    def __init__(self, id: uuid1, sender: str):
-        """[summary]
+    def __init__(self, id: uuid1,
+                 req_id: uuid1,
+                 sender_id: uuid1,
+                 nets: dict = {}):
+        """Message requesting an updated Net value. Orig_sender
+        represents the original sender of the message, no matter
+        how far down the line the message gets passed. Orig_id
+        represents the same concept but for the message id. Nets
+        are the net values collected from each Node in the grid.
 
         Args:
-            sender ([type]): [description]
+            sender_id (uuid1): Id of Node that made original request
+            nets (dict): Collection of Net values from each node
         """
         super().__init__(id, False)
-        self.sender = sender
+        self.req_id = req_id
+        self.sender_id = sender_id
+        self.nets = nets
+
+    @staticmethod
+    def deserialize(message):
+        # TODO: should be a classmethod prob
+        return UpdateNet(id=uuid1(), orig_sender=message.get('orig_sender'))
 
     def serialize(self):
-        return {
-            'id': self.id,
-            'image': self.uri,
-            'modified': falcon.dt_to_http(self.modified),
-            'size': self.size,
-        }
+        return {}
 
     def __str__(self):
         return f'<UpdateNet sender={self.sender}'
@@ -116,34 +91,58 @@ class UpdateNet(Message):
 
 class AddSibling(Message):
 
-    def __init__(self, id: uuid1, sender: str, sibling: str, respond: bool):
+    def __init__(self, id: uuid1,
+                 timestamp: datetime,
+                 sibling_id: uuid1,
+                 sibling_name: str,
+                 sibling_address: str):
         """AddSibling message to initiate an Add Sibling action.
-        Inlcudes the sibling to be added as well as an indicator
-        of whether it requires a reciprocal call to add sibling.
-
-        Reciprocal call is only to ensure
 
         Args:
+            id (uuid1): Message Id
             sibling ([type]): [description]
-            respond (bool, optional): should respond. Defaults to False.
+
         """
-        super().__init__(id, False)
-        self.sender = sender
-        self.sibling = sibling
-        self.respond = respond if respond else True
+        super().__init__(id, timestamp, False)
+        self.sibling_id = sibling_id
+        self.sibling_name = sibling_name
+        self.sibling_address = sibling_address
+
+    @staticmethod
+    def deserialize(message):
+        """
+            {
+                id: [msg_uuid],
+                timestamp: [msg_timestamp],
+                sibling_id: [sender id to add as sibling],
+                sibling_address: [sender address to add as sibling]
+            }
+        TODO: Look up media get methods from Falcon
+        Args:
+            message (dict): JSON dictionary
+
+        Returns:
+            [type]: [description]
+        """
+        return AddSibling(id=message.get('id'),
+                          sibling_id=message.get('sibling_id'),
+                          sibling=message.get('sibling'))
 
     def serialize(self):
         return {
-            'sender': self.sender,
-            'sibling': self.sibling,
-            'respond': self.respond,
+            'id': self.id,
+            'timestamp': self.timestamp,
+            'sibling_id': self.sibling_id,
+            'sibling_name': self.sibling_name,
+            'sibling_address': self.sibling_address
         }
 
 
 class UpdateEnergy(Message):
 
     def __init__(self, id: uuid1,
-                 production: int = None, consumption: int = None):
+                 production: int = None,
+                 consumption: int = None):
         """UpdateEnergy message update either production
         consumption, or both.
 
@@ -155,6 +154,11 @@ class UpdateEnergy(Message):
         self.production = production
         self.consumption = consumption
 
+    @staticmethod
+    def deserialize(message):
+        return UpdateEnergy(id=uuid1(), production=message.get('production'),
+                            consumption=message.get('consumption'))
+
     def serialize(self):
         {'type': 'updateenergy',
          'id': str(self.id),
@@ -163,6 +167,7 @@ class UpdateEnergy(Message):
          }
 
 
+# TODO: Revisit, may not need these
 class Forward(Message):
 
     def __init__(self, id: uuid1, sender: str, msg: Message):
@@ -177,15 +182,12 @@ class Forward(Message):
         self.msg = msg
 
     def serialize(self):
-        return {
-            'id': self.id,
-            'sender': self.sender,
-            'modified': falcon.dt_to_http(self.modified),
-            'size': self.size,
-        }
+        return {}
 
     def serialize(self):
         pass
+
+# TODO: Revisit, may not need these
 
 
 class Response(Message):

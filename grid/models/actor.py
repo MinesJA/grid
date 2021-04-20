@@ -1,11 +1,12 @@
-from grid.models.envelope import Envelope
 from asyncio import Queue
+from grid.models.message import Envelope
 
 
 class Actor:
 
-    def __init__(self, id):
+    def __init__(self, id, address):
         self.id = id
+        self.address = address
         self.inbox = Queue(maxsize=100)
         self.running = False
 
@@ -20,27 +21,10 @@ class Actor:
         not self.running
 
     async def tell(self, message):
-        import pdb
-        pdb.set_trace()
-        await self.inbox.put(message)
+        await self.inbox.put(Envelope(message))
 
-    async def ask(self, message):
-        # Create a future here
-
-        # try:
-        #     if not self.is_alive():
-        #         raise ActorDeadError(f"{self} not found")
-        # except ActorDeadError:
-        #     future.set_exception()
-        # else:
-        #     self.actor_inbox.put(Envelope(message, reply_to=future))
-
-        # if block:
-        #     return future.get(timeout=timeout)
-        # else:
-        #     return future
-        #   return self.on_receive(message)
-        pass
+    async def ask(self, message, reply_to):
+        await self.inbox.put(Envelope(message, reply_to))
 
     def on_receive(self, message):
         # To be implemented by child class

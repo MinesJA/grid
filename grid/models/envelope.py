@@ -1,21 +1,26 @@
 class Envelope:
-    """
-    From Pykka docs:
-    Envelope to add metadata to a message.
+    # NOTE: Borrowed partially from Pykka
 
-    This is an internal type and is not part of the public API.
-
-    :param message: the message to send
-    :type message: any
-    :param reply_to: the future to reply to if there is a response
-    :type reply_to: :class:`pykka.Future`
-    """
     # Using slots speeds up envelope creation with ~20%
-    __slots__ = ["message", "reply_to"]
+    __slots__ = ['id', 'msg', 'reply_to', 'resp_msg']
 
-    def __init__(self, message, reply_to=None):
-        self.message = message
-        self.reply_to = reply_to
 
-    def __repr__(self):
-        return f"Envelope(message={self.message!r}, reply_to={self.reply_to!r})"
+def __init__(self, id, msg, reply_to=None, resp_msg=None):
+    """[summary]
+
+    Args:
+        id (uuid1): [description]
+        msg (Message): [description]
+        reply_to (uuid1, optional): [description]. Defaults to None.
+        resp_message (uuid1): [description]. Defaults to None.
+    """
+    self.id = id
+    self.msg = msg
+    self.reply_to = reply_to
+    self.resp_msg = resp_msg
+
+
+def __repr__(self):
+    return f'Envelope<message={self.msg}, \
+        reply_to={self.reply_to}, \
+        resp_msg={self.resp_msg}>'

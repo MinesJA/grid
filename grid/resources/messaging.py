@@ -1,8 +1,39 @@
 import falcon
 from grid.models.node import Node
+from grid.models.node import NodeProxy
+from grid.models.message import Envelope, UpdateEnergy, UpdateNet, AddSibling
 from operator import itemgetter
 
 from grid.models.message import deserialize, Message
+
+# TODO: Not sure if deserializatio belongs in here
+MESSAGE_TYPES = {
+    'updateenergy': UpdateEnergy,
+    'updatenet': UpdateNet,
+    'addsibling': AddSibling,
+}
+
+
+def deserialize(type, message):
+    """Creates a Message object from a type
+    and message dict. Uses factory pattern.
+
+    https://realpython.com/factory-method-python/
+
+    Args:
+        type (str): type of message
+        message (dict): dict of info
+
+    Returns:
+        Message: Message based type
+    """
+    message_class = MESSAGE_TYPES.get(type)
+    if message_class is not None:
+        message_class.deserializer(message)
+    else:
+        raise ValueError(type)
+
+# TODO: Prob shoulld be considered a controller?
 
 
 class Messaging():
@@ -17,17 +48,34 @@ class Messaging():
             ex. address: 'messaging/ask/addsibling?sender=n1'
                 body: {id: 'abcd123, sibling: '123.123.123:8080'}
 
+        {
+            "message": {
+                "id": "uuid",
+                "timestamp": "datetime",
+                "sibling_address": "str",
+                "sibling_id": "uuid",
+                "sibling_name": "str"
+            },
+            "reply_to": "uuid"
+        }
+
         Args:
             req (Request): Falcon Request object
             resp (Response): Falcon Response object
             type (str): type of message
         """
 
-        msg = await req.get_media()
-        msg_obj = deserialize(type, msg)
+        body = await req.get_media()
+        message = body.get('message')
+        recip_id = body.get('reply_to')
+        msg_obj = deserialize(type, message)
 
+        # # TODO: What if this is already in Node
+        # # siblings dict?
+        # sibling = NodeProxy.deserialize(reply_to)
+        envelope = Envelope(msg_obj, recip_id)
         # TODO: Need a try catch here
-        await self.inbox.put(msg_obj)
+        await self.inbox.put(envelope)
 
         resp.status = falcon.HTTP_200
 
@@ -41,9 +89,8 @@ class Messaging():
             type (str): type of message
         """
         msg = await req.get_media()
-
         msg_obj = deserialize(type, msg)
-
+        envelope = Envelope(msg_obj)
         # TODO: Need a try catch here
         await self.inbox.put(msg_obj)
 

@@ -3,9 +3,9 @@ import falcon
 
 class AuthMiddleware:
 
-    def __init__(self, token, account_id):
+    def __init__(self, token, name):
         self.token = token
-        self.account_id = account_id
+        self.account_id = name
 
     async def process_request(self, req, resp):
         token = req.get_header('Authorization')
