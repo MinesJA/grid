@@ -1,14 +1,11 @@
 from uuid import uuid1
 import datetime
-from collections import namedtuple
+from grid.models.nodeProxy import NodeProxy
 
 TYPE = 'type'
 SIBLING = 'sibling'
 REQUIRES_RESPONSE = 'requires_response'
 SENDER = 'sender'
-
-Envelope = namedtuple(
-    'Envelope', ['envelope_id', 'message', 'reply_to', 'response'])
 
 
 class Message:
@@ -49,7 +46,7 @@ class Message:
     def __hash__(self):
         return id(self.id)
 
-    def __str__(self):
+    def __repr__(self):
         clss_name = self.__class__.__name__
         attr_list = [f'{k}={v.__str__()}' for k, v in self.__dict__.items()]
         attr_str = ' '.join(attr_list)
@@ -58,44 +55,29 @@ class Message:
 
 class UpdateNet(Message):
 
-    def __init__(self, id: uuid1,
-                 req_id: uuid1,
-                 sender_id: uuid1,
-                 nets: dict = {}):
-        """Message requesting an updated Net value. Orig_sender
-        represents the original sender of the message, no matter
-        how far down the line the message gets passed. Orig_id
-        represents the same concept but for the message id. Nets
-        are the net values collected from each Node in the grid.
+    def __init__(self, nets: dict = {}):
+        """Message requesting an updated Net value.
 
         Args:
-            sender_id (uuid1): Id of Node that made original request
             nets (dict): Collection of Net values from each node
         """
-        super().__init__(id, False)
-        self.req_id = req_id
-        self.sender_id = sender_id
+        super().__init__(uuid1(), False)
         self.nets = nets
 
-    @staticmethod
-    def deserialize(message):
+    @classmethod
+    def deserialize(clss, msg):
         # TODO: should be a classmethod prob
-        return UpdateNet(id=uuid1(), orig_sender=message.get('orig_sender'))
+        return clss(id=msg.get('id'), nets=msg.get('nets'))
 
     def serialize(self):
         return {}
-
-    def __str__(self):
-        return f'<UpdateNet sender={self.sender}'
 
 
 class AddSibling(Message):
 
     def __init__(self, id: uuid1,
                  timestamp: datetime,
-                 sibling_id: uuid1,
-                 sibling_name: str,
-                 sibling_address: str):
+                 sibling: NodeProxy):
         """AddSibling message to initiate an Add Sibling action.
 
         Args:
@@ -104,12 +86,19 @@ class AddSibling(Message):
 
         """
         super().__init__(id, timestamp, False)
-        self.sibling_id = sibling_id
-        self.sibling_name = sibling_name
-        self.sibling_address = sibling_address
+        self.sibling = sibling
 
-    @staticmethod
-    def deserialize(message):
+    @classmethod
+    def add_self(clss, node):
+        return clss(
+            id=uuid1(),
+            timestamp=datetime(),
+            sibling_id=node.id,
+            sibling_name=node.name,
+            sibling_address=node.address)
+
+    @classmethod
+    def deserialize(clss, message):
         """
             {
                 id: [msg_uuid],
@@ -124,17 +113,18 @@ class AddSibling(Message):
         Returns:
             [type]: [description]
         """
-        return AddSibling(id=message.get('id'),
-                          sibling_id=message.get('sibling_id'),
-                          sibling=message.get('sibling'))
+        sibling = NodeProxy(id=message.get('sibling_id'),
+                            name=message.get('sibling_name'),
+                            address=message.get('sibling_address'))
+        return clss(message.get('id'), message.get('timestamp'), sibling)
 
     def serialize(self):
         return {
             'id': self.id,
             'timestamp': self.timestamp,
-            'sibling_id': self.sibling_id,
-            'sibling_name': self.sibling_name,
-            'sibling_address': self.sibling_address
+            'sibling_id': self.sibling.id,
+            'sibling_name': self.sibling.name,
+            'sibling_address': self.sibling.address
         }
 
 

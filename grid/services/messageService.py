@@ -19,7 +19,7 @@ class MessageService():
                 inbox.task_done()
 
         await inbox.join()
-    
+
     # TODO: Finish this
     async def process_outgoing(self, outbox):
         self.stop_outging = False
@@ -27,7 +27,7 @@ class MessageService():
         while not self.stop_outoing:
             await asyncio.sleep(2)
             if not outbox.empty():
-                
+                pass
 
     def exit(self):
         self.stop = True

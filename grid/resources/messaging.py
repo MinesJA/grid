@@ -96,6 +96,11 @@ class Messaging():
 
         resp.status = falcon.HTTP_200
 
+    async def on_get_response(self, req, resp, type):
+        pass
+
+
+
 # As an IoT device, I will send an UpdateEnergy message:
 # to: http://address:port/tell?type=updateenergy
 # {token: 'my_auth_token', consumption: 15}

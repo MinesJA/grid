@@ -27,6 +27,9 @@ class NodeProxy:
     def ask(self, envelope, block=False):
         pass
 
+    def respond(self, envelope):
+        pass
+
     @classmethod
     def deserialize(clss, data):
         id = data.get('id')
