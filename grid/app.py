@@ -42,6 +42,7 @@ def create_app(inbox, token, name):
     messaging = Messaging(inbox=inbox)
     app.add_route('/ask/{type}', messaging, suffix='ask')
     app.add_route('/tell/{type}', messaging, suffix='tell')
+    app.add_route('/respond/{type}', messaging, suffix='respond')
 
     # nodes = Nodes(inbox)
     # app.add_route('/nodes/siblings', nodes, suffix='siblings')

@@ -97,7 +97,7 @@ class Node(Actor):
             self.mail_distr.awaiting_responses.pop(env.req_id)
             self.update_network(req_id=uuid1())
 
-    def forward_update(self, master_req_id=None, reply_to=None, siblings=None):
+    def forward_update(self, master_req_id=None, reply_to_id=None, siblings=None):
         """Nodes send out an update message to each of their siblings which
         have not already sent an update message (to prevent forwarding
         backwards). Nodes keep track of pending replies tracking both
@@ -128,10 +128,12 @@ class Node(Actor):
                 Defaults to None.
         """
         siblings = siblings if siblings else self.siblings.values()
-        reply_to = reply_to if reply_to else self.id
+        reply_to_id = reply_to_id if reply_to_id else self.id
         master_req_id = master_req_id if master_req_id else uuid1()
 
-        self.mail_routing.update({master_req_id: MailDistr(reply_to)})
+        self.mail_routing.update({master_req_id: MailDistr(reply_to_id)})
+        # TODO: Is there a reason we're doing this get as opposed to
+        # just assiging the MailDistr instance to a variable?
         mail_distr = self.mail_routing.get(master_req_id)
 
         for sibling in siblings:
@@ -148,23 +150,14 @@ class Node(Actor):
         Args:
             env (Envelope): envelope
         """
-        # reply_to_node = self.siblings.get(env.reply_to)
-        # pending_envelopes = self.pending_replies.get(env.msg.req_id)
-
-        # req_id = env.msg.req_id
-        # forward_id = (req_id, env.id)
-
-        # to_resp = self.mail_distr.to_respond(req_id)
-        # awaiting_resp = self.mail_distr.awaiting_responses(forward_id)
 
         if isinstance(env, Tell):
+            # Primary Message to begin Update Net
             self.forward_update()
 
         elif isinstance(env, Ask):
-            req_id = env.req_id
-            master_req_id = env.master_req_id
-            reply_to = self.siblings.get(env.reply_to)
-            to_resp = self.mail_routing.get(master_req_id)
+            reply_to = self.siblings.get(env.reply_to_id)
+            to_resp = self.mail_routing.get(env.master_req_id)
             siblings = [s for s in self.siblings.values() if s is not reply_to]
 
             if not reply_to:
@@ -175,110 +168,69 @@ class Node(Actor):
                 # 1. This request has not been processed before
                 # 2. This is not a dead end
                 # Forward message to all siblings
-                self.forward_update(master_req_id, env.reply_to, siblings)
+                self.forward_update(env.master_req_id,
+                                    env.reply_to_id,
+                                    siblings)
             elif to_resp:
-                # 1. This message has already been processed
+                # 1. This message has already been processed by another node
                 # Respond with a 0 value to prevent duplicate counting
-                resp_env = Response(UpdateNet({self.id: 0}), req_id)
+                resp_env = Response(UpdateNet({self.id: 0}), env.req_id)
                 reply_to.respond(resp_env)
             elif not siblings:
                 # 1. This is a dead end
                 # Begin retrieval process
-                resp_env = Response(UpdateNet({self.id: self.net}), req_id)
+                resp_env = Response(UpdateNet({self.id: self.net}), env.req_id)
                 reply_to.respond(resp_env)
             else:
-                raise ValueError('Something bad happend in ASK UpdateNet')
+                raise ValueError(
+                    f'{self.address}: Something bad happend in Ask UpdateNet')
 
         elif isinstance(env, Response):
-            reply_to = self.siblings.get(env.reply_to)
-            req_id = env.req_id
-            master_req_id = env.master_req_id
-            mail_distr = self.mail_routing.get(master_req_id)
+            reply_to = self.siblings.get(env.reply_to_id)
+            mail_distr = self.mail_routing.get(env.master_req_id)
 
             if not mail_distr:
                 raise ValueError(
                     f'{self.name} does not have a \
-                        MailDistr for id: {master_req_id}')
+                        MailDistr for id: {env.master_req_id}')
 
             if not reply_to:
                 raise ValueError(
                     f'{env.reply_to} is not an established sibling')
 
-            awaiting_env = mail_distr.get_awaiting(req_id)
+            to_resp = mail_distr.get_awaiting(env.req_id)
 
-            if not awaiting_env:
+            if not to_resp:
                 raise ValueError(
                     f'{self.name} does not have an \
-                        Awaiting Env for id: {req_id}')
+                        Awaiting Response for id: {env.req_id}')
 
             if mail_distr.reply_to == self.id:
-                # 1. This is the start of the chain
+                # 1. This means the response has reached the start
                 # Close out request
                 self.net = sum(env.msg.nets.values())
-                mail_distr.close_awaiting(req_id, env)
+                mail_distr.close_awaiting(env.req_id, env)
 
             elif mail_distr.is_completed():
                 compiled_nets = {self.id: self.personal_net()}
 
-                for resp_env in mail_distr.responded.values():
-                    compiled_nets.update(resp_env.msg.nets)
+                for e in mail_distr.responded.values():
+                    compiled_nets.update(e.msg.nets)
 
-                reply_to = self.siblings.get(mail_distr.reply_to)
-                resp_env = Response(UpdateNet(compiled_nets),
-                                    req_id, master_req_id)
-                reply_to.respond(resp_env)
+                forward_to = self.siblings.get(mail_distr.reply_to_id)
+                response = Response(UpdateNet(compiled_nets),
+                                    env.req_id,
+                                    env.master_req_id)
+                forward_to.respond(response)
 
             elif not mail_distr.is_completed():
-                # If all awaiting_responses now have resp_msgs
-                # package all nets and respond to to_respond.reply_to
-                # with compiled data
+                # 1. Mail is still pending
+                # Close out received envelope
+                mail_distr.close_awaiting(env.req_id, env)
 
-                
-                mail_distr.close_awaiting(req_id, env)
-
-
-
-            elif not env.reply_to and env.resp_msg and awaiting_resp and not to_resp:
-                # 1. This is a Tell request
-                # 2. The incoming  Envelope has a response
-                # 3. This reponse is expected
-                # 4. A prior Node is expecting a response
-                # Replace the existing Envelope with the response Envelope
-
-                self.mail_distr.update_awaiting(forward_id, env)
-
-                if not self.mail_distr.is_awaiting(req_id):
-                    # If all awaiting_responses now have resp_msgs
-                    # package all nets and respond to to_respond.reply_to
-                    # with compiled data
-
-                    compiled_nets = {
-                        self.id: self.production - self.consumption}
-
-                    for pend_env in self.mail_distr.awaiting_responses.values():
-                        compiled_nets.update(pend_env.resp_msg.nets)
-
-                    resp_env = gen_forward_envelope(env, compiled_nets)
-
-            print(message.nets)
-
-            total_net = sum(message.nets.values())
-            self.net = total_net + (self.production - self.consumption)
-        msg, recip_id = envelope
-        all_nets = [self.pro - self.con]
-
-        msg = UpdateNet(self.id)
-        forward_msg = Forward(self.id, msg)
-        self.net_messages.add(msg.id)
-
-        for sibling in self.siblings.values():
-            if msg.id not in sibling.net_messages:
-                nets.append(sibling.ask(forward_msg))
-
-        if recip_id:
-            self.siblings.get(recip_id)
-
-        # self.net = sum(flatten(vals))
+            else:
+                raise ValueError(f'{self.address}: Something has gone \
+                wrong in Response handling')
 
     def update_energy(self, envelope: UpdateEnergy):
 

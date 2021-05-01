@@ -1,36 +1,32 @@
-from uuid import uuid1
-import datetime
+import uuid
+from uuid import uuid1, UUID
 from grid.models.nodeProxy import NodeProxy
 
-TYPE = 'type'
-SIBLING = 'sibling'
-REQUIRES_RESPONSE = 'requires_response'
-SENDER = 'sender'
+# TODO:
+# def generate_primary_message
+# Should we develop some concept of creating
+# primary messages and secondary messages?
+__all__ = ['UpdateNet',
+           'AddSibling',
+           'UpdateEnergy']
 
 
 class Message:
-    def __init__(self, id, timestamp, requires_auth):
+    def __init__(self, id: UUID):
         """Base class for Message objects.
 
         Args:
-            id (uuid1): [description]
+            id (uuid1): original id of message
         """
         self.id = id
-        self.timestamp = timestamp
-        self.requires_auth = requires_auth
 
-    @staticmethod
-    def deserialize(message):
-        """To be implmented by child message class
-
-        TODO: Figure out what exactly the Falcon media
-        obj is
-
-        TODO: Update to this:
-        https://stackabuse.com/pythons-classmethod-and-staticmethod-explained/
+    @classmethod
+    def deserialize(clss, msg_dict: dict):
+        """To be implement by child message class
 
         Args:
-            message (media_obj): Falcon media object
+            clss ([type]): [description]
+            msg_dict ([type]): [description]
         """
         pass
 
@@ -55,82 +51,88 @@ class Message:
 
 class UpdateNet(Message):
 
-    def __init__(self, nets: dict = {}):
+    def __init__(self,
+                 id: UUID,
+                 ,
+                 nets: dict = {}):
         """Message requesting an updated Net value.
 
         Args:
+            id (uuid1): Id of UpdateNet message
             nets (dict): Collection of Net values from each node
         """
-        super().__init__(uuid1(), False)
+        super().__init__(id)
         self.nets = nets
 
     @classmethod
-    def deserialize(clss, msg):
-        # TODO: should be a classmethod prob
-        return clss(id=msg.get('id'), nets=msg.get('nets'))
+    def deserialize(clss, msg_dict: dict):
+        # TODO: Refactor this...
+        id = UUID(msg_dict.get('id'))
+        nets = msg_dict.get('nets', {})
+        return clss(id, nets)
 
     def serialize(self):
-        return {}
+        return {'id': self.id,
+                'nets': self.nets}
 
 
 class AddSibling(Message):
 
-    def __init__(self, id: uuid1,
-                 timestamp: datetime,
-                 sibling: NodeProxy):
-        """AddSibling message to initiate an Add Sibling action.
+    def __init__(self,
+                 id: UUID,
+                 sibling_id: UUID,
+                 sibling_name: str,
+                 sibling_address: str):
+        """Add a sibling message
 
         Args:
-            id (uuid1): Message Id
-            sibling ([type]): [description]
-
+            id (UUID): Id of message
+            sibling_id (UUID): id of sibling to add
+            sibling_name (str): name of sibling to add
+            sibling_address (str): address of sibling to add
         """
-        super().__init__(id, timestamp, False)
-        self.sibling = sibling
+        super().__init__(id)
+        self.sibling_id = sibling_id
+        self.sibling_name = sibling_name
+        self.sibling_address = sibling_address
 
     @classmethod
-    def add_self(clss, node):
+    def with_self(clss, node):
+        # TODO: This may fit into the concept of
+        # a primary message creation
         return clss(
             id=uuid1(),
-            timestamp=datetime(),
             sibling_id=node.id,
             sibling_name=node.name,
             sibling_address=node.address)
 
     @classmethod
-    def deserialize(clss, message):
-        """
-            {
-                id: [msg_uuid],
-                timestamp: [msg_timestamp],
-                sibling_id: [sender id to add as sibling],
-                sibling_address: [sender address to add as sibling]
-            }
-        TODO: Look up media get methods from Falcon
-        Args:
-            message (dict): JSON dictionary
+    def deserialize(clss, msg_dict):
 
-        Returns:
-            [type]: [description]
-        """
-        sibling = NodeProxy(id=message.get('sibling_id'),
-                            name=message.get('sibling_name'),
-                            address=message.get('sibling_address'))
-        return clss(message.get('id'), message.get('timestamp'), sibling)
+        # TODO: Refactor this...
+        id = uuid.UUID(msg_dict.get('id'))
+        sibling_id = msg_dict.get('siblingId')
+        sibling_name = msg_dict.get('siblingName')
+        sibling_address = msg_dict.get('siblingAddress')
+
+        return clss(id,
+                    sibling_id,
+                    sibling_name,
+                    sibling_address)
 
     def serialize(self):
         return {
             'id': self.id,
-            'timestamp': self.timestamp,
-            'sibling_id': self.sibling.id,
-            'sibling_name': self.sibling.name,
-            'sibling_address': self.sibling.address
+            'sibling_id': self.sibling_id,
+            'sibling_name': self.sibling_name,
+            'sibling_address': self.sibling_address
         }
 
 
 class UpdateEnergy(Message):
 
-    def __init__(self, id: uuid1,
+    def __init__(self,
+                 id: UUID,
                  production: int = None,
                  consumption: int = None):
         """UpdateEnergy message update either production
@@ -140,61 +142,23 @@ class UpdateEnergy(Message):
             production (int): new production value
             consumption (int): new consumption value
         """
-        super().__init__(id, True)
+        super().__init__(id)
         self.production = production
         self.consumption = consumption
 
-    @staticmethod
-    def deserialize(message):
-        return UpdateEnergy(id=uuid1(), production=message.get('production'),
-                            consumption=message.get('consumption'))
+    @classmethod
+    def deserialize(clss, msg_dict):
+        id = uuid.UUID(msg_dict.get('id'))
+        production = msg_dict.get('production')
+        consumption = msg_dict.get('consumption')
+
+        return clss(id,
+                    production,
+                    consumption)
 
     def serialize(self):
-        {'type': 'updateenergy',
-         'id': str(self.id),
-         'production': self.production,
-         'consumption': self.consumption
-         }
-
-
-# TODO: Revisit, may not need these
-class Forward(Message):
-
-    def __init__(self, id: uuid1, sender: str, msg: Message):
-        """[summary]
-
-        Args:
-            sender ([type]): [description]
-            msg ([type]): [description]
-        """
-        super().__init__(id, False)
-        self.sender = sender
-        self.msg = msg
-
-    def serialize(self):
-        return {}
-
-    def serialize(self):
-        pass
-
-# TODO: Revisit, may not need these
-
-
-class Response(Message):
-
-    def __init__(self, id: uuid1, sender: str, data: str):
-        """
-
-        TODO: think through how data response should be
-        wrapped
-
-        Args:
-            sender ([type]): [description]
-            data ([type]): [description]
-        """
-        super().__init__(id, False)
-        self.sender = sender
-        self.data = data
-
-    def serialize(self):
-        pass
+        return {
+            'id': self.id,
+            'production': self.production,
+            'consumption': self.consumption,
+        }

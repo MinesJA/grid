@@ -6,8 +6,8 @@ ForwardId = namedtuple('ForwardID', ['req_id', 'env_id'])
 
 class MailDistr:
 
-    def __init__(self, reply_to, awaiting_responses={}):
-        """For managing messages that have not been addressed
+    def __init__(self, reply_to_id):
+        """ For managing messages that have not been addressed
         yet.
 
         to_respond are messages that need to be sent back
@@ -19,11 +19,12 @@ class MailDistr:
             {(req_id, env_id): Envelope<>}
             forward_id (req_id, env_id)
 
-        Returns:
-            [type]: [description]
+        Args:
+            reply_to_id ([type]): [description]
         """
-        self.reply_to = reply_to
-        self.awaiting_responses = awaiting_responses
+       
+        self.reply_to_id = reply_to_id
+        self.awaiting_responses = {}
         self.responded = {}
 
     def get_awaiting(self, req_id, env_id):

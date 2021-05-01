@@ -1,39 +1,13 @@
 import falcon
-from grid.models.node import Node
-from grid.models.node import NodeProxy
-from grid.models.message import Envelope, UpdateEnergy, UpdateNet, AddSibling
-from operator import itemgetter
+from grid.services.deserialization import deserialize
+from grid.models.envelope import *
+from grid.models.message import *
 
-from grid.models.message import deserialize, Message
-
-# TODO: Not sure if deserializatio belongs in here
 MESSAGE_TYPES = {
-    'updateenergy': UpdateEnergy,
     'updatenet': UpdateNet,
     'addsibling': AddSibling,
+    'updateenergy': UpdateEnergy
 }
-
-
-def deserialize(type, message):
-    """Creates a Message object from a type
-    and message dict. Uses factory pattern.
-
-    https://realpython.com/factory-method-python/
-
-    Args:
-        type (str): type of message
-        message (dict): dict of info
-
-    Returns:
-        Message: Message based type
-    """
-    message_class = MESSAGE_TYPES.get(type)
-    if message_class is not None:
-        message_class.deserializer(message)
-    else:
-        raise ValueError(type)
-
-# TODO: Prob shoulld be considered a controller?
 
 
 class Messaging():
@@ -42,21 +16,14 @@ class Messaging():
         self.inbox = inbox
 
     async def on_get_ask(self, req, resp, type):
-        """Should deserialize message to proper message
-        object and call 'ask' of node and return result
-        in response.
-            ex. address: 'messaging/ask/addsibling?sender=n1'
-                body: {id: 'abcd123, sibling: '123.123.123:8080'}
+        """Should call Ask of Node with properly deserialized
+        Envelope wrapping properly deserialized Message.
 
         {
-            "message": {
-                "id": "uuid",
-                "timestamp": "datetime",
-                "sibling_address": "str",
-                "sibling_id": "uuid",
-                "sibling_name": "str"
-            },
-            "reply_to": "uuid"
+            "message": "dictionary",
+            "replyToId": "uuid",
+            "reqId": "uuid",
+            "masterReqId": "uuid"
         }
 
         Args:
@@ -66,17 +33,17 @@ class Messaging():
         """
 
         body = await req.get_media()
+        # TODO: Can prob refactor this...see falcon docs
         message = body.get('message')
-        recip_id = body.get('reply_to')
-        msg_obj = deserialize(type, message)
+        # reply_to_id = body.get('replyToId')
+        # req_id = body.get('reqId')
+        # master_req_id = body.get('masterReqId')
 
-        # # TODO: What if this is already in Node
-        # # siblings dict?
-        # sibling = NodeProxy.deserialize(reply_to)
-        envelope = Envelope(msg_obj, recip_id)
+        message = MESSAGE_TYPES.get(type).deserialize(body)
+        envelope = Ask.deserialize(body, message)
+
         # TODO: Need a try catch here
         await self.inbox.put(envelope)
-
         resp.status = falcon.HTTP_200
 
     async def on_get_tell(self, req, resp, type):
@@ -98,7 +65,6 @@ class Messaging():
 
     async def on_get_response(self, req, resp, type):
         pass
-
 
 
 # As an IoT device, I will send an UpdateEnergy message:
