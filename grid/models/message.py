@@ -18,21 +18,17 @@ class Message:
         Args:
             id (uuid1): original id of message
         """
-        self.id = id
+        self.id = id if id else uuid1()
 
     @classmethod
     def deserialize(clss, msg_dict: dict):
         """To be implement by child message class
-
-        Args:
-            clss ([type]): [description]
-            msg_dict ([type]): [description]
         """
-        pass
+        raise NotImplemented()
 
     def serialize(self):
         """To be implmented by child message class"""
-        pass
+        raise NotImplemented()
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -52,9 +48,8 @@ class Message:
 class UpdateNet(Message):
 
     def __init__(self,
-                 id: UUID,
-                 ,
-                 nets: dict = {}):
+                 nets: dict = {},
+                 id: UUID = None):
         """Message requesting an updated Net value.
 
         Args:
@@ -79,10 +74,10 @@ class UpdateNet(Message):
 class AddSibling(Message):
 
     def __init__(self,
-                 id: UUID,
                  sibling_id: UUID,
                  sibling_name: str,
-                 sibling_address: str):
+                 sibling_address: str,
+                 id: UUID = None):
         """Add a sibling message
 
         Args:
@@ -132,9 +127,9 @@ class AddSibling(Message):
 class UpdateEnergy(Message):
 
     def __init__(self,
-                 id: UUID,
                  production: int = None,
-                 consumption: int = None):
+                 consumption: int = None,
+                 id: UUID = None):
         """UpdateEnergy message update either production
         consumption, or both.
 

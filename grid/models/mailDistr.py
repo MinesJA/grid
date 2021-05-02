@@ -22,7 +22,6 @@ class MailDistr:
         Args:
             reply_to_id ([type]): [description]
         """
-       
         self.reply_to_id = reply_to_id
         self.awaiting_responses = {}
         self.responded = {}

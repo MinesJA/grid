@@ -1,5 +1,4 @@
 import falcon
-from grid.services.deserialization import deserialize
 from grid.models.envelope import *
 from grid.models.message import *
 
@@ -9,15 +8,21 @@ MESSAGE_TYPES = {
     'updateenergy': UpdateEnergy
 }
 
+ENVELOPE_TYPES = {
+    'ask': Ask,
+    'tell': Tell,
+    'response': Response
+}
+
 
 class Messaging():
 
     def __init__(self, inbox):
         self.inbox = inbox
 
-    async def on_get_ask(self, req, resp, type):
-        """Should call Ask of Node with properly deserialized
-        Envelope wrapping properly deserialized Message.
+    async def on_get(self, req, resp, action, msg_type):
+        """Should call proper envelope action on node
+        with deserialized envelope wrapping message
 
         {
             "message": "dictionary",
@@ -29,42 +34,21 @@ class Messaging():
         Args:
             req (Request): Falcon Request object
             resp (Response): Falcon Response object
-            type (str): type of message
+            env_type (str): type of action
+            msg_type (str): type of message
         """
+        # TODO: Need better error handling:
+        # 1. What if msg doesn't come back properly?
+        # 2. What if inbox malfunctions?
 
         body = await req.get_media()
-        # TODO: Can prob refactor this...see falcon docs
-        message = body.get('message')
-        # reply_to_id = body.get('replyToId')
-        # req_id = body.get('reqId')
-        # master_req_id = body.get('masterReqId')
+        msg_data = body.get('message')
 
-        message = MESSAGE_TYPES.get(type).deserialize(body)
-        envelope = Ask.deserialize(body, message)
+        message = MESSAGE_TYPES.get(msg_type).deserialize(msg_data)
+        envelope = ENVELOPE_TYPES.get(action).deserialize(body, message)
 
-        # TODO: Need a try catch here
         await self.inbox.put(envelope)
         resp.status = falcon.HTTP_200
-
-    async def on_get_tell(self, req, resp, type):
-        """Should drop a tell message into inbox and
-        let the response be a 200.
-
-        Args:
-            req (Request): Falcon Request object
-            resp (Response): Falcon Response object
-            type (str): type of message
-        """
-        msg = await req.get_media()
-        msg_obj = deserialize(type, msg)
-        envelope = Envelope(msg_obj)
-        # TODO: Need a try catch here
-        await self.inbox.put(msg_obj)
-
-        resp.status = falcon.HTTP_200
-
-    async def on_get_response(self, req, resp, type):
-        pass
 
 
 # As an IoT device, I will send an UpdateEnergy message:

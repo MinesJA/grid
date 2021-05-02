@@ -12,7 +12,7 @@ class MessageService():
 
         while not self.stop_incoming:
             await asyncio.sleep(2)
-            print(f'GRID:    {node}')
+            print(f'GRID:    Inbox {node}')
             if not inbox.empty():
                 envelope = await inbox.get()
                 await node.on_receive(envelope)
@@ -20,14 +20,19 @@ class MessageService():
 
         await inbox.join()
 
-    # TODO: Finish this
-    async def process_outgoing(self, outbox):
-        self.stop_outging = False
+    async def process_outgoing(self, outbox, session):
+        self.stop_outgoing = False
 
-        while not self.stop_outoing:
+        while not self.stop_outgoing:
             await asyncio.sleep(2)
+            print(f'GRID:    Outbox')
             if not outbox.empty():
-                pass
+                env = await outbox.get()
+                url = env.format_url()
+                data = env.serialize()
+                async with session.get(url, json=data) as response:
+                    print("Status:", response.status)
 
     def exit(self):
-        self.stop = True
+        self.stop_incoming = True
+        self.stop_outgoing = True

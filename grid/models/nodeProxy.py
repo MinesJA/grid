@@ -1,41 +1,16 @@
-from uuid import uuid1
-import aiohttp
-import asyncio
+from uuid import UUID
 
 
 # TODO: This should probably inherit from Actor but that would
 # require Actor to not have it's own inbox
 # OR would have to rethink how that works
+
 class NodeProxy:
 
-    def __init__(self, id: uuid1, name: str, address: str):
+    def __init__(self, id: UUID, name: str, address: str):
         self.id = id
         self.name = name
         self.address = address
-
-    def tell(self, envelope):
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f'http://{self.address}/tell/') as response:
-
-                print("Status:", response.status)
-                print("Content-type:", response.headers['content-type'])
-
-                html = await response.text()
-                print("Body:", html[:15], "...")
-
-    def ask(self, envelope, block=False):
-        pass
-
-    def respond(self, envelope):
-        pass
-
-    @classmethod
-    def deserialize(clss, data):
-        id = data.get('id')
-        name = data.get('name')
-        address = data.get('address')
-        return clss(id, name, address)
 
     def __eq__(self, other):
         if isinstance(other, NodeProxy):

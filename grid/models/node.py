@@ -1,19 +1,22 @@
-from datetime import datetime, time
+from asyncio import Queue
+from time import time
 from uuid import uuid1
-from collections import defaultdict
-from grid.models.nodeProxy import NodeProxy
 from grid.models.actor import Actor
-from grid.models.message import AddSibling, UpdateNet, UpdateEnergy
-from grid.models.envelope import Envelope, Tell, Ask, Response
+from grid.models.message import *
+from grid.models.envelope import *
 from grid.models.mailDistr import MailDistr
+from grid.models.nodeProxy import NodeProxy
 
 
 class Node(Actor):
 
-    # TODO: Naming convention for address is confusing.
-    # Address:Port = Address??
-    def __init__(self, name: str, address: str, port: str,
-                 production: int, consumption: int):
+    def __init__(self,
+                 name: str,
+                 host: str,
+                 port: str,
+                 production: int,
+                 consumption: int,
+                 outbox: Queue):
         """Builds a Node object. Net describes the net energy
         output of the entire grid. If no siblings, then net
         is simply the net output of the invididual node.
@@ -22,7 +25,7 @@ class Node(Actor):
             address (str): http address of the node (ex. '123.123.123')
             port (str): port of the node (ex. '8080')
         """
-        super().__init__(uuid1(), f'{address}:{port}')
+        super().__init__(uuid1(), f'{host}:{port}')
         self.name = name
         self.siblings = {}
         # {req_id: {env_id: <Envelope ....> }}
@@ -30,6 +33,7 @@ class Node(Actor):
         self.production = production
         self.consumption = consumption
         self._net = production - consumption
+        self.outbox = outbox
 
         self.mail_routing = {}
 
@@ -46,23 +50,22 @@ class Node(Actor):
     def personal_net(self):
         return self.production - self.consumption
 
-    async def on_receive(self, envelope):
-        if isinstance(envelope.message, UpdateEnergy):
-            self.update_energy(envelope)
-        elif isinstance(envelope.message, AddSibling):
-            self.add_sibling(envelope)
-        elif isinstance(envelope.message, UpdateNet):
-            self.update_net(envelope)
+    async def on_receive(self, env):
+        if isinstance(env.msg, UpdateEnergy):
+            self.update_energy(env)
+        elif isinstance(env.msg, AddSibling):
+            self.add_sibling(env)
+        elif isinstance(env.msg, UpdateNet):
+            self.update_net(env)
         else:
             self.print(
-                f'{self.name}: Did not recognize message {envelope.message}')
+                f'{self.name}: Did not recognize message {env.msg}')
 
     async def add_sibling(self, env):
         """Adds a sibling NodeProxy to siblings. Then sends
         response message AddSibling with it's own info to maintain
         a bidirectional graph. Then sends a request to update
         the grids net output.
-        # TODO: Edit per changes
 
         Args:
             env (Envelope): envelope with add sibling details
@@ -74,30 +77,65 @@ class Node(Actor):
         n2: updates n1 internally responds to n1
         """
 
-        sibling = env.msg.sibling
+        # env.msg.sibling_id
+        # env.msg.sibling_name
+        # env.msg.sibling_address
+
+        sibling = NodeProxy(env.msg.sibling_id,
+                            env.msg.sibling_name,
+                            env.msg.sibling_address)
 
         if isinstance(env, Tell) and sibling.id not in self.siblings:
-            ask_msg = AddSibling.add_self(self)
-            ask_env = Ask(ask_msg, self.address)
-            self.mail_distr.awaiting_responses.update({ask_env.id: ask_env})
-            sibling.ask(ask_env)
+            # TODO: Do we need a seperate id and req_id? Redundant?
+            req_id = uuid1()
+            ask_env = Ask(id=req_id,
+                          timestamp=time(),
+                          to=env.msg.sibling_address,
+                          msg=AddSibling.with_self(self),
+                          reply_to_id=self.id,
+                          req_id=req_id)
+
+            mail_distr = MailDistr(self.id)
+            mail_distr.update_awaiting(req_id, ask_env)
+            self.mail_routing.update({req_id: mail_distr})
+            await self.outbox.put(ask_env)
 
         elif isinstance(env, Ask) and sibling.id not in self.siblings:
+
             self.siblings.update({sibling.id: sibling})
-            resp_msg = AddSibling.add_self(self)
-            resp_env = Response(resp_msg, env.id)
-            sibling.respond(resp_env)
+            resp_msg = AddSibling.with_self(self)
+            resp_env = Response(id=uuid1(),
+                                timestamp=time(),
+                                to=sibling.address,
+                                msg=resp_msg,
+                                req_id=env.id)
+
+            await self.outbox.put(resp_env)
 
         elif isinstance(env, Response) and sibling.id not in self.siblings:
             # Once the reciprocal relationship has been established
             # then update the original Node's siblings and send
             # a request to update the Net values of each Node
 
-            self.siblings.update({sibling.id: sibling})
-            self.mail_distr.awaiting_responses.pop(env.req_id)
-            self.update_network(req_id=uuid1())
+            self.siblings.update({env.msg.sibling_id: sibling})
 
-    def forward_update(self, master_req_id=None, reply_to_id=None, siblings=None):
+            mail_distr = self.mail_routing.get(env.req_id)
+
+            if not mail_distr:
+                raise ValueError(
+                    f'{self.name} does not have a \
+                        MailDistr for id: {env.master_req_id}')
+
+            mail_distr.close_awaiting(env.req_id)
+            # TODO: Currently only updates this Node's net values,
+            # Does not update all other nodes
+            self.forward_update()
+
+    # TODO: Need to rename this
+    async def forward_update(self,
+                             master_req_id=None,
+                             reply_to_id=None,
+                             siblings=None):
         """Nodes send out an update message to each of their siblings which
         have not already sent an update message (to prevent forwarding
         backwards). Nodes keep track of pending replies tracking both
@@ -131,19 +169,23 @@ class Node(Actor):
         reply_to_id = reply_to_id if reply_to_id else self.id
         master_req_id = master_req_id if master_req_id else uuid1()
 
-        self.mail_routing.update({master_req_id: MailDistr(reply_to_id)})
-        # TODO: Is there a reason we're doing this get as opposed to
-        # just assiging the MailDistr instance to a variable?
-        mail_distr = self.mail_routing.get(master_req_id)
+        mail_distr = MailDistr(reply_to_id)
+        self.mail_routing.update({master_req_id: mail_distr})
 
         for sibling in siblings:
             req_id = uuid1()
-            ask_env = Ask(msg=UpdateNet(), reply_to=self.id,
-                          req_id=req_id, master_req_id=master_req_id)
+            ask_env = Ask(id=uuid1(),
+                          timestamp=time(),
+                          to=sibling.address,
+                          msg=UpdateNet(uuid1()),
+                          reply_to_id=self.id,
+                          req_id=req_id,
+                          master_req_id=master_req_id)
             mail_distr.update_awaiting(req_id, ask_env)
-            sibling.ask(ask_env)
 
-    def update_net(self, env):
+            await self.outbox.put(ask_env)
+
+    async def update_net(self, env):
         """Update net by collecting net values
         of entire grid and summing them up.
 
@@ -174,13 +216,18 @@ class Node(Actor):
             elif to_resp:
                 # 1. This message has already been processed by another node
                 # Respond with a 0 value to prevent duplicate counting
-                resp_env = Response(UpdateNet({self.id: 0}), env.req_id)
-                reply_to.respond(resp_env)
+                resp_env = Response(to=reply_to.address,
+                                    msg=UpdateNet({self.id: 0}),
+                                    req_id=env.req_id)
+                await self.outbox.put(resp_env)
             elif not siblings:
                 # 1. This is a dead end
                 # Begin retrieval process
-                resp_env = Response(UpdateNet({self.id: self.net}), env.req_id)
-                reply_to.respond(resp_env)
+                resp_env = Response(to=reply_to.address,
+                                    msg=UpdateNet(
+                                        {self.id: self.personal_net()}),
+                                    req_id=env.req_id)
+                await self.outbox.put(resp_env)
             else:
                 raise ValueError(
                     f'{self.address}: Something bad happend in Ask UpdateNet')
@@ -205,10 +252,12 @@ class Node(Actor):
                     f'{self.name} does not have an \
                         Awaiting Response for id: {env.req_id}')
 
-            if mail_distr.reply_to == self.id:
-                # 1. This means the response has reached the start
+            if mail_distr.reply_to_id == self.id:
+                # 1. The response has reached the start
                 # Close out request
+
                 self.net = sum(env.msg.nets.values())
+                print(f'{self.address} closed out request. Net value is {self.net}')
                 mail_distr.close_awaiting(env.req_id, env)
 
             elif mail_distr.is_completed():
@@ -218,10 +267,11 @@ class Node(Actor):
                     compiled_nets.update(e.msg.nets)
 
                 forward_to = self.siblings.get(mail_distr.reply_to_id)
-                response = Response(UpdateNet(compiled_nets),
-                                    env.req_id,
-                                    env.master_req_id)
-                forward_to.respond(response)
+                resp_env = Response(to=forward_to.address,
+                                    msg=UpdateNet(compiled_nets),
+                                    req_id=env.req_id,
+                                    master_req_id=env.master_req_id)
+                await self.outbox.put(resp_env)
 
             elif not mail_distr.is_completed():
                 # 1. Mail is still pending
@@ -232,66 +282,31 @@ class Node(Actor):
                 raise ValueError(f'{self.address}: Something has gone \
                 wrong in Response handling')
 
-    def update_energy(self, envelope: UpdateEnergy):
-
-        message, *_ = envelope
-
-        x = f'NODE: Hit update energy'\
-            f'consumption={message.consumption if not None else 0}'\
-            f'production={message.production if not None else 0}'
-
-        print(x)
-        # TODO: Refactor to one liners
-        if message.consumption is not None:
-            self.consumption = message.consumption
-        if message.production is not None:
-            self.production = message.production
-
-        self.net = self.production - self.consumption
-        # TODO: Then shoud update siblings
-
-    def get_energy(self):
-        return {'production': self.production,
-                'consumption': self.consumption,
-                'net': self.net}
-
-    def handle_net_sync_req(self, msg):
-        if msg.id not in self.node.messages:
-            self.node.messages[msg.id] = msg
-            self.net = self._calculate_net(msg.net)
-
-            self.forward_message(self.net, msg)
-            return self.net
-
-    def forward_message(self, msg):
-        # abc = {"type":"insecure","id":"1","name":"peter"}
-
-        black_list_values = set(('timeStamp'))
-
-        xyz = {k: v for k, v in abc.iteritems() if k not in black_list_values}
-        xyz["identity"] = abc["id"]
-
-        for node in self.siblings:
-            requests.put(node._format_url('power'), data=msg)
-
-    def _generate_msg(self, timeStamp, latest_net):
-        return {
-            'msgId': hash((timeStamp, self.id)),
-            'timeStamp': timeStamp,
-            'sender': self.id,
-            'net': latest_net
-        }
-
-    def _calculate_net(self, other_net):
-        """Returns personal net added to incoming net.
+    def update_energy(self, env):
+        """Updates the energy production and/or
+        consumption of Node
 
         Args:
-            other_net (int): net to be added to personal net
+            env ([type]): [description]
         """
-        return self.productionduction + self.consumptionsumption + other_net
+        x = f'NODE: Hit update energy'\
+            f'consumption={env.msg.consumption if not None else 0}'\
+            f'production={env.msg.production if not None else 0}'
 
-    def _format_url(self, route: str):
-        return f'http://{self.address}:{self.port}/{route}'
+        # TODO: Refactor to one liners
+        if env.msg.consumption is not None:
+            self.consumption = env.msg.consumption
+        if env.msg.production is not None:
+            self.production = env.msg.production
+
+        self.net = self.production - self.consumption
+        self.forward_update()
+
+        # TODO: need to implement to make sure other siblings update their net
+        # as well
+        # for s in self.siblings.value():
+        #     s.message(Tell(id=uuid1(), timestamp=time(),
+        #       msg=UpdateNet(id=uuid1()))
 
     def __eq__(self, other):
         if isinstance(other, Node):
@@ -302,7 +317,8 @@ class Node(Actor):
         return id(self.id)
 
     def __str__(self):
-        return f'Node<name={self.name}'\
-            f' production={self.production}'\
-            f' consumption={self.consumption}'\
-            f' net={self.net}>'
+        return f'Node<name={self.name} \
+        id={self.id} \
+        production={self.production} \
+        consumption={self.consumption} \
+        net={self.net}>'

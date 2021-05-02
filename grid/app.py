@@ -5,9 +5,10 @@ import asyncio
 import argparse
 import falcon.asgi
 import signal
+import aiohttp
 from grid.models.node import Node
 from grid.server import Server
-from grid.services.task_manager import TaskManager
+from grid.services.messageService import MessageService
 from grid.auth_middleware import AuthMiddleware
 from grid.resources.messaging import Messaging
 
@@ -40,13 +41,7 @@ def create_app(inbox, token, name):
     app = falcon.asgi.App(middleware=AuthMiddleware(token, name))
 
     messaging = Messaging(inbox=inbox)
-    app.add_route('/ask/{type}', messaging, suffix='ask')
-    app.add_route('/tell/{type}', messaging, suffix='tell')
-    app.add_route('/respond/{type}', messaging, suffix='respond')
-
-    # nodes = Nodes(inbox)
-    # app.add_route('/nodes/siblings', nodes, suffix='siblings')
-    # app.add_route('/nodes/energy', nodes, suffix='energy')
+    app.add_route('/{action}/{msg_type}', messaging)
     return app
 
 
@@ -58,9 +53,15 @@ def create_parser():
     parser = argparse.ArgumentParser(description='Start a node')
     parser.add_argument('--name', '-n')
     parser.add_argument('--token', '-t')
-    parser.add_argument('--address', '-a')
+    parser.add_argument('--host', '-s')
     parser.add_argument('--port', '-p', type=int)
     return parser
+
+
+INBOX = asyncio.Queue()
+OUTBOX = asyncio.Queue()
+SESSION = aiohttp.ClientSession()
+ARGS = parse_args(sys.argv[1:])
 
 
 def handle_exit(server, task_manager):
@@ -68,37 +69,44 @@ def handle_exit(server, task_manager):
     task_manager.exit()
 
 
-INBOX = asyncio.Queue()
-ARGS = parse_args(sys.argv[1:])
-
-
-node = Node(name=ARGS.name, address=ARGS.address,
-            port=ARGS.port, production=10, consumption=5)
+node = Node(name=ARGS.name,
+            host=ARGS.host,
+            port=ARGS.port,
+            production=10,
+            consumption=5,
+            outbox=OUTBOX)
 
 app = create_app(inbox=INBOX, token=ARGS.token, name=ARGS.name)
 
 loop = asyncio.get_event_loop()
-config = Config(app=app, loop=loop)
+
+config = Config(app=app, host=ARGS.host, port=ARGS.port, loop=loop)
 server = Server(config)
-task_manager = TaskManager()
+message_service = MessageService()
 
 if __name__ == "__main__":
     print(f'Grid:   Starting Grid')
     print(f'GRID:   pid {os.getpid()}: send SIGINT or SIGTERM to exit.')
 
     server_task = loop.create_task(server.serve())
-    message_task = loop.create_task(
-        task_manager.process_messages(INBOX, node))
+    in_msg_task = loop.create_task(
+        message_service.process_incoming(INBOX, node)
+    )
+    out_msg_task = loop.create_task(
+        message_service.process_outgoing(OUTBOX, SESSION)
+    )
 
-    tasks = [server_task, message_task]
+    # TODO: Do we need this?
+    tasks = [server_task, in_msg_task, out_msg_task]
 
     for sig in HANDLED_SIGNALS:
-        loop.add_signal_handler(sig, handle_exit, server, task_manager)
+        loop.add_signal_handler(sig, handle_exit, server, message_service)
 
     loop.run_until_complete(
         asyncio.gather(
             server_task,
-            message_task,
+            in_msg_task,
+            out_msg_task,
             loop=loop
         ))
 
