@@ -3,12 +3,16 @@ import sys
 import os
 import asyncio
 import argparse
+import falcon
 import falcon.asgi
+from falcon import media
 import signal
 import aiohttp
 from grid.models.node import Node
+from grid.models.mailRoom import MailRoom
 from grid.server import Server
 from grid.services.messageService import MessageService
+from grid.services.serializer import *
 from grid.auth_middleware import AuthMiddleware
 from grid.resources.messaging import Messaging
 
@@ -38,10 +42,19 @@ HANDLED_SIGNALS = (
 
 
 def create_app(inbox, token, name):
-    app = falcon.asgi.App(middleware=AuthMiddleware(token, name))
+    app = falcon.asgi.App()
+    json_handler = media.JSONHandler(
+        loads=deserialize,
+    )
+    extra_handlers = {
+        'application/json': json_handler,
+    }
+
+    app.req_options.media_handlers.update(extra_handlers)
+    app.resp_options.media_handlers.update(extra_handlers)
 
     messaging = Messaging(inbox=inbox)
-    app.add_route('/{action}/{msg_type}', messaging)
+    app.add_route('/messaging', messaging)
     return app
 
 
@@ -52,6 +65,7 @@ def parse_args(args):
 def create_parser():
     parser = argparse.ArgumentParser(description='Start a node')
     parser.add_argument('--name', '-n')
+    parser.add_argument('--id', '-i', type=int)
     parser.add_argument('--token', '-t')
     parser.add_argument('--host', '-s')
     parser.add_argument('--port', '-p', type=int)
@@ -69,12 +83,16 @@ def handle_exit(server, task_manager):
     task_manager.exit()
 
 
+mailroom = MailRoom(outbox=OUTBOX)
+
+
 node = Node(name=ARGS.name,
+            id=ARGS.id,
             host=ARGS.host,
             port=ARGS.port,
             production=10,
             consumption=5,
-            outbox=OUTBOX)
+            mailroom=mailroom)
 
 app = create_app(inbox=INBOX, token=ARGS.token, name=ARGS.name)
 
@@ -86,6 +104,7 @@ message_service = MessageService()
 
 if __name__ == "__main__":
     print(f'Grid:   Starting Grid')
+    print(f'Grid:   Created Node: {node.id}')
     print(f'GRID:   pid {os.getpid()}: send SIGINT or SIGTERM to exit.')
 
     server_task = loop.create_task(server.serve())

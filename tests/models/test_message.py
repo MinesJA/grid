@@ -1,6 +1,10 @@
 from grid.models.message import AddSibling
 
 
+def test_deserialize_addsibling():
+    pass
+
+
 def test_string():
     # Should output __str__ based on class
     # and attributes

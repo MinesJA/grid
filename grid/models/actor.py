@@ -1,13 +1,28 @@
 from asyncio import Queue
+from grid.utils.strFormatter import *
 
 
-# TODO: Rethink hierarchy - Actor, Node, NodeProxy
 class Actor:
 
-    def __init__(self, id, address):
+    def __init__(self, id: int, address: str, name: str):
         self.id = id
         self.address = address
+        self.name = name
 
-    def on_receive(self, message):
-        # To be implemented by child class
-        raise NotImplemented()
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.id == other.id
+        return False
+
+    def __hash__(self):
+        return id(self.id)
+
+    def __repr__(self):
+        clss_name = self.__class__.__name__
+        base_attrs = format_attrs(id=self.id,
+                                  address=self.address,
+                                  name=self.name)
+        return f'[{clss_name}] {base_attrs}'
+
+    def __str__(self):
+        return self.__repr__()

@@ -49,8 +49,5 @@ def test_update_energy(client):
 
     assert resp.status == '200 OK'
 
-    import pdb
-    pdb.set_trace()
-
     # TestCase().assertDictEqual(resp.json,
     #                            {'production': 5, 'consumption': 5, 'net': 0})

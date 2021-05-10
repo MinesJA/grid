@@ -1,18 +1,20 @@
 import uuid
 from uuid import uuid1, UUID
-from grid.models.nodeProxy import NodeProxy
+from grid.utils.valueGetters import *
 
 # TODO:
 # def generate_primary_message
 # Should we develop some concept of creating
 # primary messages and secondary messages?
-__all__ = ['UpdateNet',
+__all__ = ['Message',
+           'UpdateNet',
            'AddSibling',
-           'UpdateEnergy']
+           'UpdateEnergy',
+           'SyncNodes']
 
 
 class Message:
-    def __init__(self, id: UUID):
+    def __init__(self, id: UUID = None):
         """Base class for Message objects.
 
         Args:
@@ -20,8 +22,11 @@ class Message:
         """
         self.id = id if id else uuid1()
 
+    def get_type(self):
+        return self.__class__.__name__
+
     @classmethod
-    def deserialize(clss, msg_dict: dict):
+    def deserialize(clss, data: dict):
         """To be implement by child message class
         """
         raise NotImplemented()
@@ -40,9 +45,24 @@ class Message:
 
     def __repr__(self):
         clss_name = self.__class__.__name__
-        attr_list = [f'{k}={v.__str__()}' for k, v in self.__dict__.items()]
+        attr_list = [f'{k}={v.__str__()}' for k,
+                     v in self.__dict__.items() if not isinstance(v, UUID)]
         attr_str = ' '.join(attr_list)
         return f'<{clss_name} {attr_str}>'
+
+
+class SyncNodes(Message):
+
+    def __init__(self):
+        super().__init__(id)
+
+    @classmethod
+    def deserialize(clss, data: dict):
+        id = getuuid(data, 'id')
+        return clss(id)
+
+    def serialize(self):
+        return {'id': str(self.id)}
 
 
 class UpdateNet(Message):
@@ -60,21 +80,20 @@ class UpdateNet(Message):
         self.nets = nets
 
     @classmethod
-    def deserialize(clss, msg_dict: dict):
-        # TODO: Refactor this...
-        id = UUID(msg_dict.get('id'))
-        nets = msg_dict.get('nets', {})
-        return clss(id, nets)
+    def deserialize(clss, data: dict):
+        id = getuuid(data, 'id')
+        nets = data.get('nets')
+        return clss(nets, id)
 
     def serialize(self):
-        return {'id': self.id,
+        return {'id': str(self.id),
                 'nets': self.nets}
 
 
 class AddSibling(Message):
 
     def __init__(self,
-                 sibling_id: UUID,
+                 sibling_id: int,
                  sibling_name: str,
                  sibling_address: str,
                  id: UUID = None):
@@ -92,7 +111,7 @@ class AddSibling(Message):
         self.sibling_address = sibling_address
 
     @classmethod
-    def with_self(clss, node):
+    def with_node(clss, node):
         # TODO: This may fit into the concept of
         # a primary message creation
         return clss(
@@ -102,25 +121,20 @@ class AddSibling(Message):
             sibling_address=node.address)
 
     @classmethod
-    def deserialize(clss, msg_dict):
+    def deserialize(clss, data):
+        id = getuuid(data, 'id')
+        sib_id = getint(data, 'siblingId')
+        sib_name = getstr(data, 'siblingName')
+        sib_address = getstr(data, 'siblingAddress')
 
-        # TODO: Refactor this...
-        id = uuid.UUID(msg_dict.get('id'))
-        sibling_id = msg_dict.get('siblingId')
-        sibling_name = msg_dict.get('siblingName')
-        sibling_address = msg_dict.get('siblingAddress')
-
-        return clss(id,
-                    sibling_id,
-                    sibling_name,
-                    sibling_address)
+        return clss(sib_id, sib_name, sib_address, id)
 
     def serialize(self):
         return {
-            'id': self.id,
-            'sibling_id': self.sibling_id,
-            'sibling_name': self.sibling_name,
-            'sibling_address': self.sibling_address
+            'id': str(self.id),
+            'siblingId': str(self.sibling_id),
+            'siblingName': self.sibling_name,
+            'siblingAddress': self.sibling_address
         }
 
 
@@ -142,18 +156,15 @@ class UpdateEnergy(Message):
         self.consumption = consumption
 
     @classmethod
-    def deserialize(clss, msg_dict):
-        id = uuid.UUID(msg_dict.get('id'))
-        production = msg_dict.get('production')
-        consumption = msg_dict.get('consumption')
-
-        return clss(id,
-                    production,
-                    consumption)
+    def deserialize(clss, data: dict):
+        id = getuuid(data, 'id')
+        pro = getint(data, 'production')
+        con = getint(data, 'consumption')
+        return clss(pro, con, id)
 
     def serialize(self):
         return {
-            'id': self.id,
+            'id': str(self.id),
             'production': self.production,
             'consumption': self.consumption,
         }

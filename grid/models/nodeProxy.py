@@ -1,25 +1,25 @@
-from uuid import UUID
+from uuid import uuid1, UUID
+from grid.utils.strFormatter import *
+from grid.models.actor import Actor
+from grid.models.envelope import *
+from grid.models.message import *
 
 
-# TODO: This should probably inherit from Actor but that would
-# require Actor to not have it's own inbox
-# OR would have to rethink how that works
-
-class NodeProxy:
+class NodeProxy(Actor):
 
     def __init__(self, id: UUID, name: str, address: str):
         self.id = id
         self.name = name
         self.address = address
 
-    def __eq__(self, other):
-        if isinstance(other, NodeProxy):
-            return self.id == other.id
-        return False
+    def get_ask(self, return_id, msg):
+        return Ask(to=self.address,
+                   msg=msg,
+                   return_id=return_id,
+                   req_id=uuid1())
 
-    def __hash__(self):
-        return id(self.id)
-
-    def __str__(self):
-        return f'NodeProxy<name={self.name}'\
-            f' address={self.address}>'
+        # req_id = uuid1()
+        #     ask_env = Ask(to=sibling.address,
+        #                   msg=AddSibling.with_self(self),
+        #                   return_id=self.id,
+        #                   req_id=req_id)

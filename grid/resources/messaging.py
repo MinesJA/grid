@@ -1,18 +1,5 @@
 import falcon
-from grid.models.envelope import *
-from grid.models.message import *
-
-MESSAGE_TYPES = {
-    'updatenet': UpdateNet,
-    'addsibling': AddSibling,
-    'updateenergy': UpdateEnergy
-}
-
-ENVELOPE_TYPES = {
-    'ask': Ask,
-    'tell': Tell,
-    'response': Response
-}
+from grid.services.serializer import *
 
 
 class Messaging():
@@ -20,13 +7,14 @@ class Messaging():
     def __init__(self, inbox):
         self.inbox = inbox
 
-    async def on_get(self, req, resp, action, msg_type):
+    async def on_get(self, req, resp):
         """Should call proper envelope action on node
         with deserialized envelope wrapping message
 
         {
-            "message": "dictionary",
-            "replyToId": "uuid",
+
+            "message": {"type":str},
+            "returnId": "uuid",
             "reqId": "uuid",
             "masterReqId": "uuid"
         }
@@ -34,19 +22,12 @@ class Messaging():
         Args:
             req (Request): Falcon Request object
             resp (Response): Falcon Response object
-            env_type (str): type of action
-            msg_type (str): type of message
+            action (str): type of envelope action
         """
         # TODO: Need better error handling:
         # 1. What if msg doesn't come back properly?
         # 2. What if inbox malfunctions?
-
-        body = await req.get_media()
-        msg_data = body.get('message')
-
-        message = MESSAGE_TYPES.get(msg_type).deserialize(msg_data)
-        envelope = ENVELOPE_TYPES.get(action).deserialize(body, message)
-
+        envelope = await req.get_media()
         await self.inbox.put(envelope)
         resp.status = falcon.HTTP_200
 

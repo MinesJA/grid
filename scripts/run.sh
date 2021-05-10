@@ -20,16 +20,10 @@ i=0
 arrVar1=()
 arrVar2=()
 
-# parser.add_argument('--name', '-n')
-# parser.add_argument('--token', '-t')
-# parser.add_argument('--address', '-a')
-# parser.add_argument('--port', '-p', type=int)
-python -m grid.app -s "127.0.0.1" -p "8080" -n "A" -t "t1" # NodeA
-python -m grid.app -s "127.0.0.1" -p "8081" -n "B" -t "t2" # NodeA
-python -m grid.app -s "127.0.0.1" -p "8082" -n "C" -t "t3" # NodeA
-python -m grid.app -s "127.0.0.1" -p "8083" -n "D" -t "t4" # NodeA
-
-
+python -m grid.app -s "127.0.0.1" -p "8081" -n "A" -i "1" -t "t1" # NodeA
+python -m grid.app -s "127.0.0.1" -p "8082" -n "B" -i "2" -t "t2" # NodeA
+python -m grid.app -s "127.0.0.1" -p "8083" -n "C" -i "3" -t "t3" # NodeA
+python -m grid.app -s "127.0.0.1" -p "8084" -n "D" -i "4" -t "t4" # NodeA
 
 
 curl -X PUT -d arg=val -d arg2=val2 127.0.0.1:8080

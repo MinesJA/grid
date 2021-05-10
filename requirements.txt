@@ -10,3 +10,4 @@ pytest-asyncio
 pytest-mock
 pep8
 requests
+termcolor

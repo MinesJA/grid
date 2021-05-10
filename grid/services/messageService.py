@@ -1,4 +1,5 @@
 import asyncio
+from termcolor import colored
 
 
 class MessageService():
@@ -12,11 +13,14 @@ class MessageService():
 
         while not self.stop_incoming:
             await asyncio.sleep(2)
-            print(f'GRID:    Inbox {node}')
             if not inbox.empty():
-                envelope = await inbox.get()
-                await node.on_receive(envelope)
+                env = await inbox.get()
+                print('GRID:    ', colored(f'RECEIVING: {env}', 'blue'))
+                await node.on_receive(env)
                 inbox.task_done()
+
+            print('GRID:    ', colored('INBOX empty', 'blue'))
+            print('GRID:    ', node)
 
         await inbox.join()
 
@@ -25,13 +29,16 @@ class MessageService():
 
         while not self.stop_outgoing:
             await asyncio.sleep(2)
-            print(f'GRID:    Outbox')
+
             if not outbox.empty():
                 env = await outbox.get()
-                url = env.format_url()
+                url = f'http://{env.to}/messaging'
+                print('GRID:    ', colored(f'SENDING: {env}', 'red'))
                 data = env.serialize()
                 async with session.get(url, json=data) as response:
-                    print("Status:", response.status)
+                    pass
+
+            print('GRID:    ', colored('OUTBOX empty', 'red'))
 
     def exit(self):
         self.stop_incoming = True
