@@ -10,7 +10,7 @@ __all__ = ['Message',
            'UpdateNet',
            'AddSibling',
            'UpdateEnergy',
-           'SyncNodes']
+           'SyncGrid']
 
 
 class Message:
@@ -51,9 +51,9 @@ class Message:
         return f'<{clss_name} {attr_str}>'
 
 
-class SyncNodes(Message):
+class SyncGrid(Message):
 
-    def __init__(self):
+    def __init__(self, id: UUID = None):
         super().__init__(id)
 
     @classmethod

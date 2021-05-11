@@ -22,6 +22,7 @@ class Actor:
         base_attrs = format_attrs(id=self.id,
                                   address=self.address,
                                   name=self.name)
+
         return f'[{clss_name}] {base_attrs}'
 
     def __str__(self):

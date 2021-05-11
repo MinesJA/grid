@@ -39,7 +39,11 @@ class Node(Actor):
 
         self.mailroom = mailroom
 
-    @property.setter
+    @property
+    def gridnet(self):
+        return self._gridnet
+
+    @gridnet.setter
     def gridnet(self, net):
         self._gridnet = net
 
@@ -54,8 +58,8 @@ class Node(Actor):
             await self.add_sibling(env)
         elif isinstance(env.msg, UpdateNet):
             await self.update_net(env)
-        elif isinstance(env.msg, SyncNodes):
-            await self.sync_nodes(env)
+        elif isinstance(env.msg, SyncGrid):
+            await self.sync_grid(env)
         else:
             self.print(
                 f'{self.name}: Did not recognize message {env.msg}')
@@ -100,107 +104,20 @@ class Node(Actor):
         Args:
             env (Envelope): envelope
         """
-        def combine(responses):
-                    compiled_nets = {self.id: self.net}
-                    for resp in responses:
-                        compiled_nets.update(resp.msg.nets)
-                    return UpdateNet(compiled_nets)
 
-        def gen_msg(env, sender):
-            if isinstance(env, Tell):
-            elif isinstance(env, Ask):
-            elif isinstance(env, Response):
+        def reduce_msg(responses):
+            curr = {self.id: self.net}
 
-            UpdateNet({sender.id: sender.net}
+            for resp in responses.values():
+                curr.update(resp.nets)
 
-        # def gen_cancel(sender):
+            return UpdateNet(nets=curr)
 
-        self.mailroom.forward_all(env)
-
-
-        # if should_forward
-        # elif already_processed
-        # elif dead_end
-
-        # Forward_Ask: 
-        # if not visited and siblings:
-        # 1. This request has not been forwarded before
-        # 2. This is not a dead end
-        # Forward message to all siblings
-        msg=UpdateNet()
-
-        # Already_Processed
-        # elif visited:
-        # 1. This message has already been processed by another node
-        # Respond with a 0 value to prevent duplicate counting
-        msg=UpdateNet({self.id: 0}))
-
-
-        # elif not siblings:
-        # 1. This is a dead end
-        # Begin retrieval process
-        msg=UpdateNet({self.id: self.net})
-
-
-
-        # if isinstance(env, Tell):
-        #     await self.mailroom.ask(msg=UpdateNet(),
-        #                             sender=self,
-        #                             recipients=self.siblings.values())
-
-        # elif isinstance(env, Ask):
-        #     siblings = [s for (i, s) in self.siblings.items()
-        #                 if i != env.return_id]
-
-        #     resp_to = self.siblings.get(env.return_id)
-        #     visited = self.mailroom.has_package(env.master_req_id)
-
-        #     if not visited and siblings:
-        #         # 1. This request has not been forwarded before
-        #         # 2. This is not a dead end
-        #         # Forward message to all siblings
-        #         await self.mailroom.forward_ask(og_ask=env,
-        #                                         sender=self,
-        #                                         msg=UpdateNet(),
-        #                                         recipients=siblings)
-        #     elif visited:
-        #         # 1. This message has already been processed by another node
-        #         # Respond with a 0 value to prevent duplicate counting
-        #         self.mailroom.respond(ask=env,
-        #                               recipient=resp_to,
-        #                               msg=UpdateNet({self.id: 0}))
-        #     elif not siblings:
-        #         # 1. This is a dead end
-        #         # Begin retrieval process
-        #         self.mailroom.respond(ask=env,
-        #                               recipient=resp_to,
-        #                               msg=UpdateNet({self.id: self.net}))
-        #     else:
-        #         raise ValueError(
-        #             f'{self.address}: Something bad happend in Ask UpdateNet')
-
-        # elif isinstance(env, Response):
-        #     self.mailroom.close_req(env)
-
-        #     is_compl = self.mailroom.package_ready(env.master_req_id)
-        #     msg_returned = self.mailroom.msg_returned(env.master_req_id, self)
-
-        #     if msg_returned:
-        #         # 1. The response has reached the start
-        #         # Close out request
-        #         self.gridnet = sum(self.net, env.msg.nets.values())
-
-        #     elif is_compl:
-        #         def combine(responses):
-        #             compiled_nets = {self.id: self.net}
-        #             for resp in responses:
-        #                 compiled_nets.update(resp.msg.nets)
-        #             return UpdateNet(compiled_nets)
-
-        #         self.mailroom.forward_resp(env, combine)
-        #     else:
-        #         raise ValueError(f'{self.address}: Something has gone \
-        #         wrong in Response handling')
+        await self.mailroom.forward_ask(env=env,
+                                        msg_class=UpdateNet,
+                                        reducer=reduce_msg,
+                                        valhandler=self.gridnet,
+                                        sender=self)
 
     async def update_energy(self, env):
         """Updates the energy production and/or
@@ -211,27 +128,120 @@ class Node(Actor):
         """
         # TODO: Refactor to one liners
         if env.msg.consumption is not None:
-            self.consumption=env.msg.consumption
+            self.consumption = env.msg.consumption
         if env.msg.production is not None:
-            self.production=env.msg.production
+            self.production = env.msg.production
 
         await self.sync_nodes()
 
-    async def sync_grid(self):
-        self.mailroom.ask(msg=SyncNodes(),
-                          sender=self,
-                          recipients=self.siblings.values())
+    async def sync_grid(self, env):
 
-    async def sync_nodes(self, env):
-        if isinstance(env, Ask):
-            await self.update_net()
+        await self.update_net(Tell(self.address, UpdateNet()))
+
+        self.mailroom.forward_tell(env, SyncGrid, self)
 
     def __repr__(self):
-        attrs=format_attrs(production=self.production,
+        attrs = format_attrs(production=self.production,
                              consumption=self.consumption,
                              net=self.net,
-                             grid_net=self.grid_net)
-        return f'{super().__str__()} {attrs}'
+                             gridnet=self.gridnet)
+        # print('GRID:    ', colored(f'RECEIVING: {env}', 'blue'))
+        return f'{super(Node, self).__repr__()} {attrs}'
 
     def __str__(self):
         return self.__repr__()
+
+
+#  # result_handler(sum(self.net, env.msg.nets.values())
+
+#                        # return UpdateNet(ask=package.og_ask, recipient=?????, msg=msg)
+
+#                        # def package_msg()
+#                        #     sum(sender.net, env.msg.nets.values())
+
+#                        #     if isinstance(env, Tell):
+#                        #     elif isinstance(env, Ask):
+#                        #     elif isinstance(env, Response):
+
+#                        #     # UpdateNet({sender.id: sender.net}
+
+#                        # if should_forward
+#                        # elif already_processed
+#                        # elif dead_end
+
+#                        # Forward_Ask:
+#                        # if not visited and siblings:
+#                        # 1. This request has not been forwarded before
+#                        # 2. This is not a dead end
+#                        # Forward message to all siblings
+#                        msg = UpdateNet()
+
+#                        # Already_Processed
+#                        # elif visited:
+#                        # 1. This message has already been processed by another node
+#                        # Respond with a 0 value to prevent duplicate counting
+#                        msg = UpdateNet({self.id: 0}))
+
+#         # elif not siblings:
+#         # 1. This is a dead end
+#         # Begin retrieval process
+#         msg=UpdateNet({self.id: self.net})
+
+#         # if isinstance(env, Tell):
+#         #     await self.mailroom.ask(msg=UpdateNet(),
+#         #                             sender=self,
+#         #                             recipients=self.siblings.values())
+
+#         # elif isinstance(env, Ask):
+#         #     siblings = [s for (i, s) in self.siblings.items()
+#         #                 if i != env.return_id]
+
+#         #     resp_to = self.siblings.get(env.return_id)
+#         #     visited = self.mailroom.has_package(env.master_reqid)
+
+#         #     if not visited and siblings:
+#         #         # 1. This request has not been forwarded before
+#         #         # 2. This is not a dead end
+#         #         # Forward message to all siblings
+#         #         await self.mailroom.forward_ask(og_ask=env,
+#         #                                         sender=self,
+#         #                                         msg=UpdateNet(),
+#         #                                         recipients=siblings)
+#         #     elif visited:
+#         #         # 1. This message has already been processed by another node
+#         #         # Respond with a 0 value to prevent duplicate counting
+#         #         self.mailroom.respond(ask=env,
+#         #                               recipient=resp_to,
+#         #                               msg=UpdateNet({self.id: 0}))
+#         #     elif not siblings:
+#         #         # 1. This is a dead end
+#         #         # Begin retrieval process
+#         #         self.mailroom.respond(ask=env,
+#         #                               recipient=resp_to,
+#         #                               msg=UpdateNet({self.id: self.net}))
+#         #     else:
+#         #         raise ValueError(
+#         #             f'{self.address}: Something bad happend in Ask UpdateNet')
+
+#         # elif isinstance(env, Response):
+#         #     self.mailroom.close_req(env)
+
+#         #     is_compl = self.mailroom.package_ready(env.master_reqid)
+#         #     msg_returned = self.mailroom.msg_returned(env.master_reqid, self)
+
+#         #     if msg_returned:
+#         #         # 1. The response has reached the start
+#         #         # Close out request
+#         #         self.gridnet = sum(self.net, env.msg.nets.values())
+
+#         #     elif is_compl:
+#         #         def combine(responses):
+#         #             compiled_nets = {self.id: self.net}
+#         #             for resp in responses:
+#         #                 compiled_nets.update(resp.msg.nets)
+#         #             return UpdateNet(compiled_nets)
+
+#         #         self.mailroom.forward_resp(env, combine)
+#         #     else:
+#         #         raise ValueError(f'{self.address}: Something has gone \
+#         #         wrong in Response handling')

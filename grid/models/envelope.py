@@ -6,7 +6,7 @@ from grid.utils.strFormatter import *
 from grid.utils.valueGetters import *
 
 
-__all__ = ['Tell', 'Ask', 'Response']
+__all__ = ['Envelope', 'Tell', 'Ask', 'Response']
 
 
 # TODO: If we want to convert to datetime and back again
@@ -86,11 +86,9 @@ class Tell(Envelope):
         return super().serialize()
 
     def __repr__(self):
-        attrs = format_attrs(production=self.production,
-                             consumption=self.consumption,
-                             net=self.net,
-                             grid_net=self.grid_net)
-        return f'{super().__str__()} {attrs}'
+        attrs = format_attrs(to=self.to,
+                             msg=self.msg)
+        return f'{super().__repr__()} {attrs}'
 
     def __str__(self):
         return self.__repr__()
@@ -102,8 +100,8 @@ class Ask(Envelope):
                  to: str,
                  msg: Message,
                  return_id: int,
-                 req_id: UUID,
-                 master_req_id: UUID = None,
+                 reqid: UUID,
+                 master_reqid: UUID = None,
                  id: UUID = None,
                  timestamp: float = None):
         """
@@ -114,39 +112,39 @@ class Ask(Envelope):
             to (str): address of node to send envelope to
             msg (Message): [description]
             return_id (UUID): id of node to reply to
-            req_id (UUID): id to be used in response
-            master_req_id (UUID, optional): Request Id of primary request.
+            reqid (UUID): id to be used in response
+            master_reqid (UUID, optional): Request Id of primary request.
             id (UUID): id of message
             timestamp (float): [description]
         """
         super().__init__(to, msg, id, timestamp)
         self.return_id = return_id
-        self.req_id = req_id
-        self.master_req_id = master_req_id if master_req_id else req_id
+        self.reqid = reqid
+        self.master_reqid = master_reqid if master_reqid else reqid
 
     @classmethod
     def deserialize(clss, data: dict, msg: Message):
 
         return_id = getint(data, 'returnId')
-        req_id = getuuid(data, 'reqId')
-        master_req_id = getuuid(data, 'masterReqId')
+        reqid = getuuid(data, 'reqId')
+        master_reqid = getuuid(data, 'masterReqId')
 
         return clss(return_id=return_id,
-                    req_id=req_id,
-                    master_req_id=master_req_id,
+                    reqid=reqid,
+                    master_reqid=master_reqid,
                     **super().deserialize(data, msg))
 
     def serialize(self):
         dict = {'returnId': str(self.return_id),
-                'reqId': str(self.req_id),
-                'masterReqId': str(self.master_req_id)}
+                'reqId': str(self.reqid),
+                'masterReqId': str(self.master_reqid)}
         return {**super().serialize(), **dict}
 
     def __repr__(self):
         attrs = format_attrs(return_id=self.return_id,
-                             req_id=self.req_id,
-                             master_req_id=self.master_req_id)
-        return f'{super().__str__()} {attrs}'
+                             reqid=self.reqid,
+                             master_reqid=self.master_reqid)
+        return f'{super().__repr__()} {attrs}'
 
     def __str__(self):
         return self.__repr__()
@@ -157,13 +155,13 @@ class Response(Envelope):
     def __init__(self,
                  to: str,
                  msg: Message,
-                 req_id: UUID,
-                 master_req_id: UUID = None,
+                 reqid: UUID,
+                 master_reqid: UUID = None,
                  id: UUID = None,
                  timestamp: float = None):
         super().__init__(to, msg, id, timestamp)
-        self.req_id = req_id
-        self.master_req_id = master_req_id if master_req_id else req_id
+        self.reqid = reqid
+        self.master_reqid = master_reqid if master_reqid else reqid
 
     @classmethod
     def to_ask(clss, ask: Ask, msg, node):
@@ -174,28 +172,28 @@ class Response(Envelope):
 
         return clss(to=sibling.address,
                     msg=msg,
-                    req_id=ask.req_id,
-                    master_req_id=ask.master_req_id)
+                    reqid=ask.reqid,
+                    master_reqid=ask.master_reqid)
 
     @classmethod
     def deserialize(clss, data: dict, msg: Message):
-        req_id = getuuid(data, 'reqId')
-        master_req_id = getuuid(data, 'masterReqId')
+        reqid = getuuid(data, 'reqId')
+        master_reqid = getuuid(data, 'masterReqId')
 
-        return clss(req_id=req_id,
-                    master_req_id=master_req_id,
+        return clss(reqid=reqid,
+                    master_reqid=master_reqid,
                     **super().deserialize(data, msg))
 
     def serialize(self):
-        dict = {'reqId': str(self.req_id),
-                'masterReqId': str(self.master_req_id)}
+        dict = {'reqId': str(self.reqid),
+                'masterReqId': str(self.master_reqid)}
         return {**super().serialize(), **dict}
 
     def __repr__(self):
         attrs = format_attrs(return_id=self.return_id,
-                             req_id=self.req_id,
-                             master_req_id=self.master_req_id)
-        return f'{super().__str__()} {attrs}'
+                             reqid=self.reqid,
+                             master_reqid=self.master_reqid)
+        return f'{super().__repr__()} {attrs}'
 
     def __str__(self):
         return self.__repr__()

@@ -16,10 +16,10 @@ class NodeProxy(Actor):
         return Ask(to=self.address,
                    msg=msg,
                    return_id=return_id,
-                   req_id=uuid1())
+                   reqid=uuid1())
 
-        # req_id = uuid1()
+        # reqid = uuid1()
         #     ask_env = Ask(to=sibling.address,
         #                   msg=AddSibling.with_self(self),
         #                   return_id=self.id,
-        #                   req_id=req_id)
+        #                   reqid=reqid)
