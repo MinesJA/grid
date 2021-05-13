@@ -5,7 +5,7 @@ from grid.models.message import *
 
 from grid.models.nodeProxy import NodeProxy
 from grid.models.actor import Actor
-from typing import Type, Callable, Sequence, Dict
+from typing import Type, Callable, Sequence, Dict, Set
 import asyncio
 
 
@@ -14,7 +14,7 @@ class Package:
     def __init__(self,
                  return_to: Type[Actor],
                  requests: Dict[UUID, Ask],
-                 tells: Dict[UUID, Tell],
+                 tells: Set[UUID],
                  env: Type[Envelope] = None):
         """Package represents a group of requests sent by
         a Node to it's siblings that are waiting a response.
@@ -40,17 +40,16 @@ class Package:
         self.requests.get(reqid)
 
     def register_env(self, env: Type[Envelope]) -> None:
-        if isinstance(env, Envelope):
+        if isinstance(env, Response):
             if env.msg is None:
+                # NOTE: This request hit a branch that was
+                # already processed. Does not get a response.
                 self.requests.pop(env.reqid)
 
             self.responses.update({env.reqid: env})
 
         if isinstance(env, Tell):
-            self.tells.upate({env.reqid: env})
-
-    def register_req(self, ask: Ask) -> None:
-        self.requests.update({ask.reqid: ask})
+            self.tells.add({env.reqid})
 
     def req_completed(self, node) -> bool:
         self.return_to == node
@@ -107,6 +106,28 @@ class MailRoom:
         package = Package(sender, requests, ask)
         self._req_registry.update({master_reqid: package})
 
+    async def tell(self,
+                   msg: Type[Message],
+                   sender: Type[Actor],
+                   recipients: Sequence[NodeProxy],
+                   master_reqid: UUID = None):
+        master_reqid = master_reqid or uuid1()
+
+        requests = {}
+
+        for node in recipients:
+            ask = Ask(to=node.address,
+                      msg=msg,
+                      return_id=sender.id,
+                      reqid=uuid1(),
+                      master_reqid=master_reqid)
+
+            requests.update({ask.reqid: ask})
+            await self._outbox.put(ask)
+
+        package = Package(sender, requests, ask)
+        self._req_registry.update({master_reqid: package})
+
     async def respond(self,
                       ask: Ask,
                       msg: Type[Message],
@@ -116,25 +137,20 @@ class MailRoom:
                         reqid=ask.reqid,
                         master_reqid=ask.master_reqid)
 
-        await self.outbox.put(resp)
-
-    async def backward_response(self):
-        pass
+        await self._outbox.put(resp)
 
     async def forward_tell(self, env, msgbuilder, sender):
-        package = self._get_package(env.master_reqid)
-        package.register_env(env)
-
         siblings = [s for (i, s) in sender.siblings.items()
                     if i != env.return_id]
 
         already_processed = self.has_package(env.master_reqid)
         should_forward = not already_processed and siblings
 
-        if should_forward and not already_processed:
+        if should_forward:
             await self.tell(sender=sender,
                             msg=msgbuilder(),
-                            recipients=siblings.values())
+                            recipients=siblings,
+                            master_reqid=env.master_reqid)
 
     async def forward_ask(self,
                           env: Type[Envelope],
@@ -166,13 +182,14 @@ class MailRoom:
                            recipients=sender.siblings.values())
 
         elif isinstance(env, Ask):
+
             siblings = [s for (i, s) in sender.siblings.items()
                         if i != env.return_id]
 
             resp_to = sender.siblings.get(env.return_id)
 
             already_processed = self.has_package(env.master_reqid)
-            should_forward = not already_processed and siblings
+            should_forward = not already_processed and len(siblings) > 0
             dead_end = not siblings
 
             if should_forward:
@@ -184,14 +201,16 @@ class MailRoom:
             elif already_processed:
                 self.respond(ask=env, msg=None, recipient=resp_to)
             elif dead_end:
+                # import pdb; pdb.set_trace()
                 self.respond(ask=env,
                              recipient=resp_to,
-                             msg=reducer({}, sender))
+                             msg=UpdateNet(nets=reducer({})))
             else:
                 raise ValueError(
                     f'{sender.address}: Something bad happend in Ask')
 
         elif isinstance(env, Response):
+
             package = self._get_package(env.master_reqid)
             package.register_env(env)
 
@@ -218,6 +237,10 @@ class MailRoom:
 
     def _get_package(self, master_reqid) -> Package:
         package = self._req_registry.get(master_reqid)
-        if package is None:
-            raise ValueError("No Package exists for this master request id")
         return package
+
+        """
+        handle: Ask-and-respond
+        handle: forward-ask
+        handle: forward-tell
+        """

@@ -2,6 +2,11 @@ from uuid import UUID
 
 __all__ = ['getuuid', 'getfloat', 'getstr', 'getint']
 
+# TODO: If we want to convert to datetime and back again
+# from timestamp float
+# def to_timestamp(dt):
+#     dt.replace(tzinfo=timezone.utc).timestamp()
+
 
 def getuuid(data, *keys):
     value = None

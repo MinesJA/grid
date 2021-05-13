@@ -16,6 +16,11 @@ class MessageService():
             if not inbox.empty():
                 env = await inbox.get()
                 print('GRID:    ', colored(f'RECEIVING: {env}', 'blue'))
+                # cmd = tell.build_command(node, mailroom)
+                #      // AddSiblingCmd(node, mailroom, msg)
+                #      // Invoker?? Sender?? invoker.set_cmd(cmd)
+                #      // invoker.execute_cmd()
+                # await cmd.execute()
                 await node.on_receive(env)
                 inbox.task_done()
 
@@ -35,8 +40,9 @@ class MessageService():
                 url = f'http://{env.to}/messaging'
                 print('GRID:    ', colored(f'SENDING: {env}', 'red'))
                 data = env.serialize()
+
                 async with session.get(url, json=data) as response:
-                    pass
+                    print(response)
 
             print('GRID:    ', colored('OUTBOX empty', 'red'))
 
