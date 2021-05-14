@@ -45,9 +45,6 @@ class Response(Envelope):
                 'masterReqId': str(self.master_reqid)}
         return {**super().serialize(), **dict}
 
-    def build_cmd(self):
-        
-
     def __repr__(self):
         attrs = format_attrs(reqid=self.reqid,
                              master_reqid=self.master_reqid)
@@ -55,4 +52,4 @@ class Response(Envelope):
 
     def __str__(self):
         return self.__repr__()
-# Google pub sub
+

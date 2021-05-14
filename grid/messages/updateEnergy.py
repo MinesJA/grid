@@ -1,7 +1,6 @@
-
 from uuid import UUID
 from grid.utils.valueGetters import *
-from grid.messages.message import Message
+from grid.messages import Message
 
 
 class UpdateEnergy(Message):

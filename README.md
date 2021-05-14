@@ -30,7 +30,7 @@ Each node has three main jobs:
 3. Be in sync with all other nodes with regards the net ouput of the system.  
     * i.e. If 3 connected nodes are individually generating a net output state of 5kwH, 10kwH, and -5kwH, respectively, then each node individually should register the total net output of the grid as a whole as 10kwH (5kwH+10kwH-5kwH=10kwH).
 
-Nodes communicate with each other according to the Actor model. Only a Node can change it's own state and Nodes communicate with each other by sending each other messages which each node processes sequentially.
+Nodes communicate with each other according to the rules of the Actor model. Only a Node can change it's own state and Nodes communicate with each other by sending each other messages which each node processes sequentially.
 
 Setup
 =====
@@ -38,4 +38,14 @@ Fork and clone the repo
 
 Run
 ===
-Run the scripts/run.sh script to run 4 sample nodes
+Run a Node by running
+
+```
+python -m grid.app -s {host address} -p {port} -n {Node Name} -i {Node ID} -t {token}
+```
+
+Add a Node as a sibling by sending an http message to your node:
+
+```
+
+```

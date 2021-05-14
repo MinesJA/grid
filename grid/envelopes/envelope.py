@@ -14,13 +14,14 @@ class Envelope:
                  msg: Type[Message],
                  id: UUID = None,
                  timestamp: float = None):
-        """[summary]
+        """
+        TODO: docs....
 
         Args:
-            id (uuid1): [description]
-            timestamp (float): timestamp of when envelope was sent
             to (str): address to
             msg (Message): Message object
+            id (uuid1): [description]
+            timestamp (float): timestamp of when envelope was sent
         """
         self.to = to
         self.msg = msg
@@ -36,17 +37,13 @@ class Envelope:
 
     def serialize(self):
         return {'to': self.to,
-                'msgType': self.msg._gettype(),
-                'envType': self._gettype(),
+                'msgType': self.msg.gettype(),
+                'envType': self.gettype(),
                 'msg': self.msg.serialize(),
                 'id': str(self.id),
                 'timestamp': str(self.timestamp)}
 
-    def build_cmd(self):
-        """To be implmented by child envelope class"""
-        raise NotImplemented()
-
-    def _gettype(self):
+    def gettype(self):
         return self.__class__.__name__
 
     def __eq__(self, other):

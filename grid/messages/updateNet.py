@@ -1,7 +1,6 @@
-
 from uuid import UUID
 from grid.utils.valueGetters import *
-from grid.messages.message import Message
+from grid.messages import Message
 
 
 class UpdateNet(Message):
@@ -17,6 +16,13 @@ class UpdateNet(Message):
         """
         super().__init__(id)
         self.nets = nets
+
+    def reduce(self, node, responses):
+        curr = {node.id: node.net}
+        for resp in responses.values():
+            curr.update(resp.nets)
+
+        return UpdateNet(nets=curr)
 
     @classmethod
     def deserialize(clss, data: dict):

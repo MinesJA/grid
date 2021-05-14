@@ -1,7 +1,5 @@
 from grid.envelopes.envelope import Envelope
-from uuid import uuid1
 from grid.messages import *
-from grid.models.node import Node
 from uuid import UUID
 from grid.utils.strFormatter import *
 from grid.utils.valueGetters import *
@@ -24,12 +22,7 @@ class Tell(Envelope):
         self.master_reqid = master_reqid if master_reqid else reqid
 
     @classmethod
-    def from(clss, node: Node, msg: Type[Message]):
-        return clss(node.address, msg, node.id, uuid1())
-
-    @classmethod
     def deserialize(clss, data: dict, msg: Type[Message]):
-
         return_id = getint(data, 'returnId')
         reqid = getuuid(data, 'reqId')
         master_reqid = getuuid(data, 'masterReqId')

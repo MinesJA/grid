@@ -1,5 +1,6 @@
 import asyncio
 from termcolor import colored
+from grid.commands import commands
 
 
 class MessageService():
@@ -8,24 +9,20 @@ class MessageService():
         self.stop_incoming = True
         self.stop_outgoing = True
 
-    async def process_incoming(self, inbox, node):
+    async def process_incoming(self, inbox, node, mailroom):
         self.stop_incoming = False
+        print('GRID:    ', node)
 
         while not self.stop_incoming:
             await asyncio.sleep(2)
             if not inbox.empty():
                 env = await inbox.get()
                 print('GRID:    ', colored(f'RECEIVING: {env}', 'blue'))
-                # cmd = tell.build_command(node, mailroom)
-                #      // AddSiblingCmd(node, mailroom, msg)
-                #      // Invoker?? Sender?? invoker.set_cmd(cmd)
-                #      // invoker.execute_cmd()
-                # await cmd.execute()
-                await node.on_receive(env)
+                execute = commands.get(env.msg.gettype())
+                await execute(mailroom, node, env)
+                # await env.build_cmd(mailroom, node).execute()
+                
                 inbox.task_done()
-
-            print('GRID:    ', colored('INBOX empty', 'blue'))
-            print('GRID:    ', node)
 
         await inbox.join()
 
@@ -43,8 +40,6 @@ class MessageService():
 
                 async with session.get(url, json=data) as response:
                     print(response)
-
-            print('GRID:    ', colored('OUTBOX empty', 'red'))
 
     def exit(self):
         self.stop_incoming = True

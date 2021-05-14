@@ -11,6 +11,9 @@ class Message:
         """
         self.id = id if id else uuid1()
 
+    def reduce(self, node, responses):
+        raise NotImplemented()
+
     @classmethod
     def deserialize(clss, data: dict):
         """To be implement by child message class"""
@@ -20,7 +23,7 @@ class Message:
         """To be implmented by child message class"""
         raise NotImplemented()
 
-    def _gettype(self):
+    def gettype(self):
         return self.__class__.__name__
 
     def __eq__(self, other):

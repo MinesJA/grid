@@ -1,6 +1,6 @@
 from uuid import uuid1, UUID
 from grid.utils.valueGetters import *
-from grid.messages.message import Message
+from grid.messages import Message
 
 
 class AddSibling(Message):

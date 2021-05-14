@@ -1,4 +1,4 @@
-from grid.models.message import AddSibling
+from grid.messages import AddSibling
 
 
 def test_deserialize_addsibling():

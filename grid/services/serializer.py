@@ -1,23 +1,11 @@
-from grid.models.envelope import *
-from grid.models.message import *
+from grid.envelopes import *
+from grid.messages import *
 from importlib import import_module
 import json
 
 __all__ = ['deserialize', 'serialize']
-msg_mod = import_module('grid.models.message')
-env_mod = import_module('grid.models.envelope')
-
-MESSAGE_TYPES = {
-    'updatenet': UpdateNet,
-    'addsibling': AddSibling,
-    'updateenergy': UpdateEnergy
-}
-
-ENVELOPE_TYPES = {
-    'ask': Ask,
-    'tell': Tell,
-    'response': Response
-}
+msg_mod = import_module('grid.messages')
+env_mod = import_module('grid.envelopes')
 
 
 def deserialize(req_body):
@@ -38,30 +26,3 @@ def deserialize(req_body):
 
 def serialize(envelope):
     pass
-
-# class CustomJsonEncoder(json.JSONEncoder):
-#     def default(self, o):
-#         # Here you can serialize your object depending of its type
-#         # or you can define a method in your class which serializes the object
-#         if isinstance(o, (Employee, Autocar)):
-#             return o.__dict__  # Or another method to serialize it
-#         else:
-#             return json.JSONEncoder.encode(self, o)
-
-
-# >>> import json
-# >>> def as_complex(dct):
-# ...     if '__complex__' in dct:
-# ...         return complex(dct['real'], dct['imag'])
-# ...     return dct
-# ...
-# >>> json.loads('{"__complex__": true, "real": 1, "imag": 2}',
-# ...     object_hook=as_complex)
-# (1+2j)
-# >>> import decimal
-# >>> json.loads('1.1', parse_float=decimal.Decimal)
-# Decimal('1.1')
-
-
-# # Usage
-# json.dumps(items, cls=CustomJsonEncoder)

@@ -13,7 +13,6 @@ from grid.models.mailRoom import MailRoom
 from grid.server import Server
 from grid.services.messageService import MessageService
 from grid.services.serializer import *
-from grid.auth_middleware import AuthMiddleware
 from grid.resources.messaging import Messaging
 
 """
@@ -91,8 +90,7 @@ node = Node(name=ARGS.name,
             host=ARGS.host,
             port=ARGS.port,
             production=10,
-            consumption=5,
-            mailroom=mailroom)
+            consumption=5)
 
 app = create_app(inbox=INBOX, token=ARGS.token, name=ARGS.name)
 
@@ -109,7 +107,7 @@ if __name__ == "__main__":
 
     server_task = loop.create_task(server.serve())
     in_msg_task = loop.create_task(
-        message_service.process_incoming(INBOX, node)
+        message_service.process_incoming(INBOX, node, mailroom)
     )
     out_msg_task = loop.create_task(
         message_service.process_outgoing(OUTBOX, SESSION)
