@@ -1,5 +1,13 @@
 nose
 sphinx
 falcon
-yaml
-Queue
+gunicorn
+httpie
+uvicorn
+aiohttp
+pytest
+pytest-asyncio
+pytest-mock
+pep8
+requests
+termcolor

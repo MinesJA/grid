@@ -1,67 +1,92 @@
-import uuid
-import enum
-import requests
-import time
+from grid.models.actor import Actor
+from grid.messages import *
+from grid.envelopes import *
+from grid.utils.strFormatter import *
+from termcolor import colored
+from typing import Tuple
 
 
-class Node():
+class Node(Actor):
 
-    def __init__(self, id: uuid, address: str, port: str):
-        self.id = id
-        self.address = address
-        self.port = port
-        self.siblings = {}
-        self.messages = {}
-        self.production = 10
-        self.consumption = 5
-        # Todo: Don't like this, revisit
-        self.net = self.production+self.consumption
-
-    def add_sibling(self, node):
-        """Adds a sibling node to the siblings dict. Then sends a message to 
-        that node with it's own node info so that the relationship is
-        reciprocal. All nodes siblings should be aware of each other.
+    def __init__(self,
+                 name: str,
+                 id: int,
+                 host: str,
+                 port: str,
+                 production: int,
+                 consumption: int):
+        """Builds a Node object. Net describes the net energy
+        output of the entire grid. If no siblings, then net
+        is simply the net output of the invididual node.
 
         Args:
-            node (Node): node sibling instance
+            name (str): [description]
+            id (int): [description]
+            host (str): http address of the node (ex. '123.123.123')
+            port (str): port of the node (ex. '8080')
+            production (int): [description]
+            consumption (int): [description]
         """
-        self.siblings.update({node.id: node})
-        data = {
-            'nodes': [{'id': str(self.id), 'address': self.address, 'port': self.port}]
-        }
-        requests.put(node._format_url('nodes'), data=data)
 
-    def update_siblings(self):
-        now = time.time()
-        data = {
-            'msgId': hash((now, self.uuid)),
-            'net': self.net
-        }
-        for id, node in self.siblings.items():
-            requests.put(node._format_url('power'), data=data)
+        super().__init__(id, f'{host}:{port}', name)
+        self.siblings = {}
 
-    def adj_production(self, adjustment):
-        self.production += adjustment
-        self.net += adjustment
+        self._production = production
+        self._consumption = consumption
+        self._gridnet = production - consumption
 
-    def adj_consumption(self, adjustment):
-        self.consumption += adjustment
-        self.net -= adjustment
+    @property
+    def gridnet(self):
+        return self._gridnet
 
-    def adj_net(self, adjustment):
-        self.net += adjustment
+    @property
+    def net(self):
+        return self._production - self._consumption
 
-    def forward_message(self, msg):
-        for node in self.siblings:
-            requests.put(node._format_url('power'), data=msg)
+    @property
+    def production(self):
+        return self._consumption
 
-    def _format_url(self, route: str):
-        return f'http://{self.address}:{self.port}/{route}'
+    @production.setter
+    def production(self, production):
+        self._production = production
 
-    def __eq__(self, other):
-        if isinstance(other, Node):
-            return self.id == other.id
-        return False
+    @property
+    def consumption(self):
+        return self._consumption
 
-    def __hash__(self):
-        return id(self.id)
+    @consumption.setter
+    def consumption(self, consumption):
+        self._consumption = consumption
+
+    def update_gridnet(self, gridnet):
+        print('GRID:    ', colored(f'Updating Grid Net: {gridnet}', 'magenta'))
+        print('GRID:    ', self)
+        self._gridnet = gridnet
+
+    def add_sibling(self, sibling):
+        print('GRID:    ', colored(f'Updating Siblings: {sibling}', 'magenta'))
+        print('GRID:    ', self)
+        # TODO: Should have a check in case siblings already added?
+        self.siblings.update({sibling.id: sibling})
+
+    def update_energy(self, energy: Tuple):
+        print('GRID:    ', colored(f'Updating energy: {energy}', 'magenta'))
+        print('GRID:    ', self)
+
+        # TODO: Really hate this....refactor
+        self.production = energy[0]
+        self.consumption = energy[1]
+
+    def __repr__(self):
+        attrs = format_attrs(production=self._production,
+                             consumption=self._consumption,
+                             net=self.net,
+                             #  TODO: Format this...
+                             siblings=self.siblings.keys(),
+                             gridnet=self.gridnet)
+
+        return f'{super(Node, self).__repr__()} {attrs}'
+
+    def __str__(self):
+        return self.__repr__()
