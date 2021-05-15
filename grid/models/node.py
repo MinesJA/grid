@@ -79,11 +79,10 @@ class Node(Actor):
         self.consumption = energy[1]
 
     def __repr__(self):
-        attrs = format_attrs(production=self._production,
-                             consumption=self._consumption,
-                             net=self.net,
-                             #  TODO: Format this...
-                             siblings=self.siblings.keys(),
+        siblings = [sib.name for sib in self.siblings.values()]
+
+        attrs = format_attrs(energy=(self._production, -self._consumption),
+                             siblings=siblings,
                              gridnet=self.gridnet)
 
         return f'{super(Node, self).__repr__()} {attrs}'

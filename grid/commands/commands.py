@@ -50,10 +50,14 @@ async def syncgrid_cmd(mailroom, node, env):
 
 async def updateenergy_cmd(mailroom, node, env):
     msg = env.msg
-    siblings = node.siblings
+    siblings = node.siblings.values()
 
     if isinstance(env, Tell):
         node.update_energy((msg.production, msg.consumption))
+
+        await mailroom.ask(msg=UpdateNet(),
+                           sender=node,
+                           recipients=siblings)
 
         await mailroom.tell(msg=SyncGrid(),
                             sender=node,
