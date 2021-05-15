@@ -11,7 +11,7 @@ class Message:
         """
         self.id = id if id else uuid1()
 
-    def reduce(self, node, responses):
+    def reduce(self, responses, node):
         raise NotImplemented()
 
     @classmethod

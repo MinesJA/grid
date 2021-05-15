@@ -14,15 +14,15 @@ class MessageService():
         print('GRID:    ', node)
 
         while not self.stop_incoming:
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
             if not inbox.empty():
                 env = await inbox.get()
                 print('GRID:    ', colored(f'RECEIVING: {env}', 'blue'))
                 execute = commands.get(env.msg.gettype())
                 await execute(mailroom, node, env)
-                # await env.build_cmd(mailroom, node).execute()
-                
+
                 inbox.task_done()
+            print(node)
 
         await inbox.join()
 

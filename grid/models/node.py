@@ -41,7 +41,7 @@ class Node(Actor):
 
     @property
     def net(self):
-        return self.production - self.consumption
+        return self._production - self._consumption
 
     @property
     def production(self):
@@ -60,18 +60,18 @@ class Node(Actor):
         self._consumption = consumption
 
     def update_gridnet(self, gridnet):
-        print('GRID:    ', colored(f'Updating Grid Net: {gridnet}', 'purple'))
+        print('GRID:    ', colored(f'Updating Grid Net: {gridnet}', 'magenta'))
         print('GRID:    ', self)
         self._gridnet = gridnet
 
     def add_sibling(self, sibling):
-        print('GRID:    ', colored(f'Updating Siblings: {sibling}', 'purple'))
+        print('GRID:    ', colored(f'Updating Siblings: {sibling}', 'magenta'))
         print('GRID:    ', self)
         # TODO: Should have a check in case siblings already added?
-        self._siblings.update({sibling.id: sibling})
+        self.siblings.update({sibling.id: sibling})
 
     def update_energy(self, energy: Tuple):
-        print('GRID:    ', colored(f'Updating energy: {energy}', 'purple'))
+        print('GRID:    ', colored(f'Updating energy: {energy}', 'magenta'))
         print('GRID:    ', self)
 
         # TODO: Really hate this....refactor

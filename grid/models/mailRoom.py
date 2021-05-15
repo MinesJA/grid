@@ -10,9 +10,8 @@ import asyncio
 class Package:
 
     def __init__(self,
-                 return_to: Type[Actor],
                  requests: Dict[UUID, Type[Envelope]],
-                 env: Type[Envelope]):
+                 org_env: Type[Envelope] = None):
         """Package represents a group of requests sent by
         a Node to it's siblings that are waiting a response.
         When they've all been responded to the Package is
@@ -24,30 +23,43 @@ class Package:
                 when complete
             requests (Dict[UUID, Ask]): Requests sent, pending
                 a response
-            ask (Ask, optional): Ask to respond to when package
-                is complete. Defaults to None.
+            org_env (Type[Envelope], optional): Original envelope that
+                triggered package. If none, then this Package began with
+                initial request. Defaults to None.
         """
-        self.return_to = return_to
         self.requests = requests
-        self.env = env
+        self.org_env = org_env
         self.responses = {}
+
+    def gen_msg(self, sender, resp):
+        """Packages up responses according to reduce of original
+        request.
+
+        Args:
+            sender ([type]): [description]
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            [type]: [description]
+        """
+        if not self.is_ready():
+            raise ValueError('{self.org_env} Package is not ready to ship')
+
+        return resp.msg.reduce(self.responses, sender)
 
     def get_req(self, reqid: UUID) -> Type[Envelope]:
         self.requests.get(reqid)
 
     def register_env(self, env: Type[Envelope]) -> None:
         if isinstance(env, Response):
-            if env.msg is None:
-                # NOTE: This request hit a branch that was
-                # already processed. Does not get a response.
-                self.requests.pop(env.reqid)
-            else:
-                self.responses.update({env.reqid: env})
+            self.responses.update({env.reqid: env})
         else:
-            self.request.update({env.reqid: env})
+            self.requests.update({env.reqid: env})
 
-    def req_completed(self, node) -> bool:
-        self.return_to == node
+    def req_completed(self) -> bool:
+        return self.org_env is None
 
     def is_ready(self) -> bool:
         """Package has had all requests addressed
@@ -73,51 +85,83 @@ class MailRoom:
             return_id ([type]): [description]
         """
         self._outbox = outbox
-        # TODO: rename to packages?
-        self._req_registry = {}
+        self._packages = {}
+
+    # TODO: Refactor the Tell's and Askss
+    # Lot of unnecessary stuff going on
 
     async def ask(self,
                   msg: Type[Message],
                   sender: Type[Actor],
-                  recipients: Sequence[NodeProxy],
-                  master_reqid: UUID = None):
-        master_reqid = master_reqid or uuid1()
+                  recipients: Sequence[NodeProxy]):
+        await self._ask(recipients, sender, msg, uuid1())
 
+    async def forward_ask(self,
+                          ask: Ask,
+                          sender: Type[Actor]):
+        siblings = [s for (i, s) in sender.siblings.items()
+                    if i != ask.return_id]
+
+        already_processed = self.is_registered(ask)
+        should_forward = not already_processed and len(siblings) > 0
+        dead_end = len(siblings) <= 0
+
+        if should_forward:
+            await self._ask(siblings, sender, ask.msg, ask.master_reqid, ask)
+
+        elif already_processed or dead_end:
+            # TODO: Convoluted. Refactor. dead_end means collect nodes value
+            # already_processed means send back empty data. Should be clearer
+            node = sender if not already_processed else None
+            msg = ask.msg.reduce({}, node)
+            await self.respond(ask=ask, msg=msg, sender=sender)
+        else:
+            raise ValueError(
+                f'{sender.address}: ForwardAsk was not able to handle request')
+
+    async def _ask(self, recipients, sender, msg, master_reqid, org_env=None):
         requests = {}
 
         for node in recipients:
-            ask = Ask(to=node.address,
-                      msg=msg,
-                      return_id=sender.id,
-                      reqid=uuid1(),
-                      master_reqid=master_reqid)
+            new_ask = Ask(to=node.address,
+                          msg=msg,
+                          return_id=sender.id,
+                          reqid=uuid1(),
+                          master_reqid=master_reqid)
 
-            requests.update({ask.reqid: ask})
-            await self._outbox.put(ask)
+            requests.update({new_ask.reqid: new_ask})
+            await self._outbox.put(new_ask)
 
-        package = Package(sender, requests, ask)
-        self._req_registry.update({master_reqid: package})
+        self._register(requests, master_reqid, org_env)
 
     async def tell(self,
                    msg: Type[Message],
                    sender: Type[Actor],
                    recipients: Sequence[NodeProxy]):
-        master_reqid = uuid1()
+        await self._tell(recipients, sender, msg, uuid1())
 
+    async def forward_tell(self, tell, sender):
+        siblings = [s for (i, s) in sender.siblings.items()
+                    if i != tell.return_id]
+
+        if len(siblings) > 0 and not self.is_registered(tell):
+            await self._tell(siblings, sender, tell.msg,
+                             tell.master_reqid, tell)
+
+    async def _tell(self, recipients, sender, msg, master_reqid, env=None):
         requests = {}
-
         for node in recipients:
-            tell = Tell(to=node.address,
-                        msg=msg,
-                        return_id=sender.id,
-                        reqid=uuid1(),
-                        master_reqid=master_reqid)
 
-            requests.update({tell.reqid: tell})
-            await self._outbox.put(tell)
+            new_tell = Tell(to=node.address,
+                            msg=msg,
+                            return_id=sender.id,
+                            reqid=uuid1(),
+                            master_reqid=master_reqid)
 
-        package = Package(sender, requests, tell)
-        self._req_registry.update({master_reqid: package})
+            requests.update({new_tell.reqid: new_tell})
+            await self._outbox.put(new_tell)
+
+        self._register(requests, master_reqid, env)
 
     async def respond(self,
                       ask: Ask,
@@ -125,75 +169,35 @@ class MailRoom:
                       sender: Type[Actor]):
         await self._outbox.put(Response.to_ask(ask, msg, sender))
 
-    async def forward_tell(self, env, sender):
-        siblings = [s for (i, s) in self.node.siblings.items()
-                    if i != self.env.return_id]
-
-        already_processed = self.is_registered(env.master_reqid)
-        should_forward = not already_processed and siblings
-
-        if should_forward:
-            await self.tell(sender=sender,
-                            msg=env.message,
-                            recipients=siblings,
-                            master_reqid=env.master_reqid)
-
-    async def forward_ask(self,
-                          env: Type[Envelope],
-                          sender: Type[Actor]):
-
-        siblings = [s for (i, s) in sender.siblings.items()
-                    if i != env.return_id]
-
-        already_processed = self.has_package(env.master_reqid)
-        should_forward = not already_processed and len(siblings) > 0
-        dead_end = not siblings
-
-        if should_forward:
-            await self.ask(ask=env,
-                           sender=sender,
-                           msg=env.msg,
-                           recipients=siblings,
-                           master_reqid=env.master_reqid)
-        elif already_processed:
-            self.respond(ask=env, msg=None, sender=sender)
-        elif dead_end:
-            self.respond(ask=env,
-                         msg=env.msg.reduce(sender, {}),
-                         sender=sender)
-        else:
-            raise ValueError(
-                f'{sender.address}: ForwardAsk was not able to handle request')
-
     async def forward_response(self,
-                               env: Type[Envelope],
+                               resp: Response,
                                sender: Type[Actor]):
-        package = self._get_package(env.master_reqid)
-        package.register_env(env)
+        package = self._get_package(resp.master_reqid)
+        package.register_env(resp)
 
-        if env.msg is not None and package.is_ready():
-            msg = env.msg.reduce(sender, package.responses)
-            if package.req_completed(sender):
+        if package.is_ready():
+            msg = package.gen_msg(sender, resp)
+            if package.req_completed():
+                self.close_package(resp)
                 return msg
             else:
-                self.respond(ask=package.env,
-                             msg=msg,
-                             sender=sender)
+                await self.respond(ask=package.org_env,
+                                   msg=msg,
+                                   sender=sender)
 
-    def register_env(self, resp):
-        package = self._get_package(resp.master_reqid)
-
-        package.register_env(resp)
+    def _register(self, requests, master_reqid, org_env=None):
+        package = Package(requests, org_env)
+        self._packages.update({master_reqid: package})
 
     def is_registered(self, env):
         return self._get_package(env.master_reqid) is not None
 
     def close_package(self, env: Type[Envelope]):
-        self._req_registry.pop(env.master_reqid)
+        self._packages.pop(env.master_reqid)
 
     def _get_req(self, resp) -> Ask:
         return self._get_package(resp.master_reqid).get_req(resp.reqid)
 
     def _get_package(self, master_reqid) -> Package:
-        package = self._req_registry.get(master_reqid)
+        package = self._packages.get(master_reqid)
         return package

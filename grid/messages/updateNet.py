@@ -17,10 +17,12 @@ class UpdateNet(Message):
         super().__init__(id)
         self.nets = nets
 
-    def reduce(self, node, responses):
-        curr = {node.id: node.net}
+    def reduce(self, responses, node=None):
+        # TODO: need to find way to standarize serialization
+        # of id.
+        curr = {str(node.id): node.net} if node else {}
         for resp in responses.values():
-            curr.update(resp.nets)
+            curr.update(resp.msg.nets)
 
         return UpdateNet(nets=curr)
 
