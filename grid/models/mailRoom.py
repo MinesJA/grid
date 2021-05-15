@@ -151,7 +151,6 @@ class MailRoom:
     async def _tell(self, recipients, sender, msg, master_reqid, env=None):
         requests = {}
         for node in recipients:
-
             new_tell = Tell(to=node.address,
                             msg=msg,
                             return_id=sender.id,
