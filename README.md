@@ -16,6 +16,12 @@ In essence, the problem can be stated:
 
 At the heart of it, this seems like a problem with forcing a centralized system to operate with decentralized players. Grid attempts to establish a purely decentralized system in which players can act indepenently (produce and consume power) but with rules that push them towards a common goal (net power output = 0 at any given time).
 
+Video Demo
+==========
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/TXmYgOFI7bI/0.jpg)](https://www.youtube.com/watch?v=TXmYgOFI7bI&ab_channel=JonathanMines)
+
+
 Design
 ======
 ### Phase I: Establishing the Network
