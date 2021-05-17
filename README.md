@@ -222,3 +222,5 @@ Now send a final UpdateEnergy message to Node D see how the SyncGrid and UpdateN
     }' 
 ```
 
+After all the messaging settles down, you should see that all Nodes share the same gridnet values, indicating that the syncing has completed!
+
