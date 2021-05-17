@@ -33,4 +33,5 @@ def getint(data, *keys):
     value = None
     for key in keys:
         value = data.get(key, {})
-        return int(value) if value else None
+        isint = isinstance(value, int)
+        return int(value) if value or isint else None

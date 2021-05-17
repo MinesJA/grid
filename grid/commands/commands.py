@@ -55,6 +55,9 @@ async def updateenergy_cmd(mailroom, node, env):
     if isinstance(env, Tell):
         node.update_energy((msg.production, msg.consumption))
 
+        if len(siblings) <= 0:
+            node.update_gridnet(msg.production-msg.consumption)
+
         await mailroom.ask(msg=UpdateNet(),
                            sender=node,
                            recipients=siblings)
