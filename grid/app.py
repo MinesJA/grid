@@ -89,8 +89,8 @@ node = Node(name=ARGS.name,
             id=ARGS.id,
             host=ARGS.host,
             port=ARGS.port,
-            production=10,
-            consumption=5)
+            production=0,
+            consumption=0)
 
 app = create_app(inbox=INBOX, token=ARGS.token, name=ARGS.name)
 
