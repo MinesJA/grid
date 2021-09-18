@@ -20,7 +20,6 @@ def deserialize(req_body):
     msg_data = data.get('msg')
 
     msg_obj = msg_class.deserialize(msg_data)
-
     return env_class.deserialize(data, msg_obj)
 
 

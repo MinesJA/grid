@@ -77,7 +77,6 @@ class Node(Actor):
         # TODO: Really hate this....refactor
         self.production = energy[0]
         self.consumption = energy[1]
-        
 
     def __repr__(self):
         siblings = [sib.name for sib in self.siblings.values()]

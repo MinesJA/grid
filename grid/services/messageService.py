@@ -10,6 +10,7 @@ class MessageService():
         self.stop_outgoing = True
 
     async def process_incoming(self, inbox, node, mailroom):
+
         self.stop_incoming = False
         print('GRID:    ', node)
 
@@ -18,11 +19,16 @@ class MessageService():
             if not inbox.empty():
                 env = await inbox.get()
                 print('GRID:    ', colored(f'RECEIVING: {env}', 'blue'))
+                # TODO: Already deserialized Envelope and Message, so should
+                #   probably just have commands deserialized?
+                # TODO: Why are Messages different from commands in the first
+                #   place? They should probably be the same thing. or at
+                #   the very least, a message should include a Task.
                 execute = commands.get(env.msg.gettype())
                 await execute(mailroom, node, env)
 
                 inbox.task_done()
-            print(node)
+            # print(node)
 
         await inbox.join()
 

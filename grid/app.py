@@ -2,7 +2,6 @@ from uvicorn import Config
 import sys
 import os
 import asyncio
-import argparse
 import falcon
 import falcon.asgi
 from falcon import media
@@ -12,15 +11,25 @@ from grid.models.node import Node
 from grid.models.mailRoom import MailRoom
 from grid.server import Server
 from grid.services.messageService import MessageService
-from grid.services.serializer import *
+from grid.services.serializer import deserialize, serialize
 from grid.resources.messaging import Messaging
+from grid.cli import parse_args
+from grid.clockcycle import Scheduler
+from solana.rpc.async_api import AsyncClient
+from solana.publickey import PublicKey
+from solana.account import Account
+from solana.transaction import Transaction, TransactionInstruction, AccountMeta
+
+
+
+# TODO: Need to break this apart. Getting big
 
 """
 Message System
 ==============
 Producer:
     - server.serve()
-    Receices http requests and "produces" messages
+    Receives http requests and "produces" messages
     placing them in the message inbox
 
 Inbox:
@@ -38,6 +47,14 @@ HANDLED_SIGNALS = (
     signal.SIGINT,  # Unix signal 2. Sent by Ctrl+C.
     signal.SIGTERM,  # Unix signal 15. Sent by `kill <pid>`.
 )
+
+INBOX = asyncio.Queue()
+OUTBOX = asyncio.Queue()
+SESSION = aiohttp.ClientSession()
+ARGS = parse_args(sys.argv[1:])
+SOLANA_CLIENT_URL = 'https://api.devnet.solana.com'
+
+SCHEDULER = Scheduler.every(5, )
 
 
 def create_app(inbox, token, name):
@@ -57,33 +74,11 @@ def create_app(inbox, token, name):
     return app
 
 
-def parse_args(args):
-    return create_parser().parse_args(args)
-
-
-def create_parser():
-    parser = argparse.ArgumentParser(description='Start a node')
-    parser.add_argument('--name', '-n')
-    parser.add_argument('--id', '-i', type=int)
-    parser.add_argument('--token', '-t')
-    parser.add_argument('--host', '-s')
-    parser.add_argument('--port', '-p', type=int)
-    return parser
-
-
-INBOX = asyncio.Queue()
-OUTBOX = asyncio.Queue()
-SESSION = aiohttp.ClientSession()
-ARGS = parse_args(sys.argv[1:])
-
-
 def handle_exit(server, task_manager):
+    # Stop the background schedule thread
+    SCHEDULER.stop()
     server.exit()
     task_manager.exit()
-
-
-mailroom = MailRoom(outbox=OUTBOX)
-
 
 node = Node(name=ARGS.name,
             id=ARGS.id,
@@ -91,6 +86,8 @@ node = Node(name=ARGS.name,
             port=ARGS.port,
             production=0,
             consumption=0)
+
+mailroom = MailRoom(outbox=OUTBOX)
 
 app = create_app(inbox=INBOX, token=ARGS.token, name=ARGS.name)
 
@@ -101,11 +98,15 @@ server = Server(config)
 message_service = MessageService()
 
 if __name__ == "__main__":
+
+    
+            
     print(f'Grid:   Starting Grid')
     print(f'Grid:   Created Node: {node.id}')
     print(f'GRID:   pid {os.getpid()}: send SIGINT or SIGTERM to exit.')
 
     server_task = loop.create_task(server.serve())
+
     in_msg_task = loop.create_task(
         message_service.process_incoming(INBOX, node, mailroom)
     )
@@ -113,17 +114,17 @@ if __name__ == "__main__":
         message_service.process_outgoing(OUTBOX, SESSION)
     )
 
-    # TODO: Do we need this?
-    tasks = [server_task, in_msg_task, out_msg_task]
-
     for sig in HANDLED_SIGNALS:
         loop.add_signal_handler(sig, handle_exit, server, message_service)
+
+    SCHEDULER.start()
 
     loop.run_until_complete(
         asyncio.gather(
             server_task,
             in_msg_task,
             out_msg_task,
+            run_solana_client,
             loop=loop
         ))
 

@@ -184,6 +184,11 @@ class MailRoom:
                                    msg=msg,
                                    sender=sender)
 
+    def should_forward(self,
+                       resp: Response):
+        package = self._get_package(resp.master_reqid)
+        package.is_ready()
+
     def _register(self, requests, master_reqid, org_env=None):
         package = Package(requests, org_env)
         self._packages.update({master_reqid: package})
