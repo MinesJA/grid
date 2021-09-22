@@ -13,11 +13,15 @@ class Node(Actor):
                  id: int,
                  host: str,
                  port: str,
-                 production: int,
-                 consumption: int):
+                 production: int = 0,
+                 consumption: int = 0):
         """Builds a Node object. Net describes the net energy
         output of the entire grid. If no siblings, then net
         is simply the net output of the invididual node.
+
+        TODO: Need to rethink whole model of production, consumption, net values.
+            These values exist on a time scale. To have them be updated the way
+            they are makes no sense.
 
         Args:
             name (str): [description]

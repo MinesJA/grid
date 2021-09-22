@@ -1,6 +1,7 @@
 from uuid import UUID
-from grid.utils.valueGetters import *
+from grid.utils.valueGetters import getuuid
 from grid.messages import Message
+from grid.utils.solanaUtils import transact
 
 
 class UpdateNet(Message):
@@ -35,3 +36,41 @@ class UpdateNet(Message):
     def serialize(self):
         return {'id': str(self.id),
                 'nets': self.nets}
+
+    async def from_tell(self, node, mailroom, env):
+        siblings = node.siblings.values()
+        await mailroom.ask(sender=node,
+                           msg=UpdateNet(),
+                           recipients=siblings)
+
+    async def from_ask(self, node, mailroom, env):
+        await mailroom.forward_ask(ask=env,
+                                   sender=node)
+
+    async def from_response(self, node, mailroom, env):
+
+        # TODO: This is a strange way to do things...
+        #   Using the fact that forward_response returns a msg
+        #   if it doesn't actually need to forward the response
+        #   to determine whether to end it here or not (forward_response)
+        #   will return nothing if it doesn't
+        msg = await mailroom.forward_response(resp=env, sender=node)
+        if msg is not None:
+
+            gridnet = sum(msg.nets.values())
+            # TODO: This isn't safe. Node net may have changed from
+            #   the moment of timestamp. Need to think of better way
+            #   to do this.
+            #   OR does this make sense because we want to take the gridnet
+            #   and node net from the same time period (so now, together)?
+            nodenet = node.net
+
+            node.update_gridnet(gridnet)
+
+            data = {
+                'gridnet': gridnet,
+                'nodenet': nodenet,
+                'timestamp': env.timestamp
+            }
+
+            await transact(data)

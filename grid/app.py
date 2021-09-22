@@ -1,135 +1,97 @@
-from uvicorn import Config
 import sys
-import os
 import asyncio
-import falcon
-import falcon.asgi
-from falcon import media
 import signal
 import aiohttp
+from dotenv import load_dotenv
 from grid.models.node import Node
 from grid.models.mailRoom import MailRoom
-from grid.server import Server
-from grid.services.messageService import MessageService
-from grid.services.serializer import deserialize, serialize
-from grid.resources.messaging import Messaging
+from grid.services import InboundJob, OutboundJob, Server, Scheduler
 from grid.cli import parse_args
-from grid.clockcycle import Scheduler
-from solana.rpc.async_api import AsyncClient
-from solana.publickey import PublicKey
-from solana.account import Account
-from solana.transaction import Transaction, TransactionInstruction, AccountMeta
 
-
-
-# TODO: Need to break this apart. Getting big
+# TODO: setup logging
+# create logging branch
+# https://docs.python.org/3/library/logging.html
 
 """
 Message System
 ==============
 Producer:
-    - server.serve()
-    Receives http requests and "produces" messages
-    placing them in the message inbox
-
-Inbox:
-    - asyncio.Queue()
-    A queue for storing and processing incoming messages
+    - Server
+    Receives http requests.
+    Converts requests to Envelope with Message.
+    Places Envelope in Inbox asyncio.Queue.
 
 Consumer:
-    - task_manager.process_messages(inbox, node)
-    Looks for messages to process in Queue
-    and calls node.on_receive with message
-    when one comes up
+    - InboundJob
+    Consumes messages from inbox.
+    Calls execute method on Envelope which trigger
+    specific execution logic on message.
+    TODO: Rethink whos job it is to put outgoing
+        messages in Outbox queue.
+        Maybe Message/Mailroom/Node should just be
+        responsible for producing a message and
+        give that back to InboundJob which puts it in
+        Outbox queue.
+    Mailroom puts result of processing in Outbox
+    asyncio.Queue as Envelope with Message
+
+    - OutboundJob
+    Pulls from Outbox queue.
+    Serializes and sends out Envelopes w/ Message
+    as http requests
 """
 
-HANDLED_SIGNALS = (
-    signal.SIGINT,  # Unix signal 2. Sent by Ctrl+C.
-    signal.SIGTERM,  # Unix signal 15. Sent by `kill <pid>`.
-)
+load_dotenv()
 
 INBOX = asyncio.Queue()
 OUTBOX = asyncio.Queue()
 SESSION = aiohttp.ClientSession()
-ARGS = parse_args(sys.argv[1:])
-SOLANA_CLIENT_URL = 'https://api.devnet.solana.com'
-
-SCHEDULER = Scheduler.every(5, )
 
 
-def create_app(inbox, token, name):
-    app = falcon.asgi.App()
-    json_handler = media.JSONHandler(
-        loads=deserialize,
-    )
-    extra_handlers = {
-        'application/json': json_handler,
-    }
-
-    app.req_options.media_handlers.update(extra_handlers)
-    app.resp_options.media_handlers.update(extra_handlers)
-
-    messaging = Messaging(inbox=inbox)
-    app.add_route('/messaging', messaging)
-    return app
+def replace_with_callable():
+    # TODO: Implement scheduler callable
+    pass
 
 
-def handle_exit(server, task_manager):
-    # Stop the background schedule thread
-    SCHEDULER.stop()
-    server.exit()
-    task_manager.exit()
+# TODO: Rethink this. Right now, parse args runs and then
+#   assumption is server starts. Python app should run arg
+#   parse, which should determine what to do (start server,
+#   other stuff, etc.)
+args = parse_args(sys.arv[1:])
 
-node = Node(name=ARGS.name,
-            id=ARGS.id,
-            host=ARGS.host,
-            port=ARGS.port,
-            production=0,
-            consumption=0)
+node = Node(name=args.name,
+            id=args.id,
+            host=args.host,
+            port=args.port)
 
 mailroom = MailRoom(outbox=OUTBOX)
 
-app = create_app(inbox=INBOX, token=ARGS.token, name=ARGS.name)
-
 loop = asyncio.get_event_loop()
 
-config = Config(app=app, host=ARGS.host, port=ARGS.port, loop=loop)
-server = Server(config)
-message_service = MessageService()
-
 if __name__ == "__main__":
-
-    
-            
     print(f'Grid:   Starting Grid')
     print(f'Grid:   Created Node: {node.id}')
-    print(f'GRID:   pid {os.getpid()}: send SIGINT or SIGTERM to exit.')
 
-    server_task = loop.create_task(server.serve())
+    # TODO: Figure out where all these setup should live...
+    # TODO: Should these be called jobs?
+    services = [
+        InboundJob(INBOX, mailroom, node),
+        OutboundJob(OUTBOX, SESSION),
+        Server(INBOX, loop, args.host, args.port),
+        Scheduler(replace_with_callable, 5)
+    ]
 
-    in_msg_task = loop.create_task(
-        message_service.process_incoming(INBOX, node, mailroom)
-    )
-    out_msg_task = loop.create_task(
-        message_service.process_outgoing(OUTBOX, SESSION)
-    )
+    tasks = [loop.create_task(start()) for start in services]
 
-    for sig in HANDLED_SIGNALS:
-        loop.add_signal_handler(sig, handle_exit, server, message_service)
+    def handle_exit(*services):
+        for service in services:
+            service.exit()
 
-    SCHEDULER.start()
+    for sig in {signal.SIGINT, signal.SIGTERM}:
+        loop.add_signal_handler(sig, handle_exit, *services)
 
     loop.run_until_complete(
-        asyncio.gather(
-            server_task,
-            in_msg_task,
-            out_msg_task,
-            run_solana_client,
-            loop=loop
-        ))
+        asyncio.gather(*services, loop=loop)
+    )
 
     print(f'GRID:   Successfully exited Grid')
-
-    # TODO: setup logging
-    # create logging branch
-    # https://docs.python.org/3/library/logging.html

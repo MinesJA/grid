@@ -184,8 +184,7 @@ class MailRoom:
                                    msg=msg,
                                    sender=sender)
 
-    def should_forward(self,
-                       resp: Response):
+    def should_forward(self, resp: Response):
         package = self._get_package(resp.master_reqid)
         package.is_ready()
 

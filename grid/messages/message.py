@@ -1,5 +1,4 @@
 from uuid import uuid1, UUID
-from grid.utils.valueGetters import *
 
 
 class Message:
@@ -11,17 +10,34 @@ class Message:
         """
         self.id = id if id else uuid1()
 
-    def reduce(self, responses, node):
-        raise NotImplemented()
-
     @classmethod
     def deserialize(clss, data: dict):
-        """To be implement by child message class"""
+        """To be implemented by child message class"""
         raise NotImplemented()
 
     def serialize(self):
-        """To be implmented by child message class"""
+        """To be implemented by child message class"""
         raise NotImplemented()
+
+    def reduce(self, responses, node):
+        """To be implemented by child message class"""
+        raise NotImplemented()
+
+    def from_tell(self, node, mailroom, env):
+        """To be implemented by child message class"""
+        # TODO: May want to rethink args. Envelope isn't
+        #   needed all the time. Could be better way of allowing
+        #   message logic to use it when it needs but not pass
+        #   it down when it doesn't.
+        raise NotImplementedError
+
+    def from_ask(self, node, mailroom, env):
+        """To be implemented by child message class"""
+        raise NotImplementedError
+
+    def from_response(self, node, mailroom, env):
+        """To be implemented by child message class"""
+        raise NotImplementedError
 
     def gettype(self):
         return self.__class__.__name__

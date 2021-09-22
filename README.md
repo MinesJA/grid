@@ -40,7 +40,7 @@ cd into the repo
 
 Install dependencies:
 ```
-$ pip install --user --requirement ./requirements.txt
+$ pip install --requirement ./requirements.txt
 ```
 
 Run

@@ -1,5 +1,8 @@
 import falcon
 
+# TODO: This could be in conjunctino with address.
+# Authorize via wallet address?
+
 
 class AuthMiddleware:
 

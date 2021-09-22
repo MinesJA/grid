@@ -14,3 +14,4 @@ termcolor
 python-crontab
 schedule
 solana
+python-dotenv

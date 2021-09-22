@@ -1,6 +1,7 @@
 from uuid import UUID
-from grid.utils.valueGetters import *
-from grid.messages import Message
+from grid.utils.valueGetters import getuuid
+from grid.messages import Message, UpdateNet
+from grid.envelopes import Tell
 
 
 class SyncGrid(Message):
@@ -15,3 +16,14 @@ class SyncGrid(Message):
 
     def serialize(self):
         return {'id': str(self.id)}
+
+    async def from_tell(self, node, mailroom, env):
+        # TODO: Verify that package get's closed in mailroom
+        if isinstance(env, Tell):
+            if not mailroom.is_registered(env):
+                siblings = node.siblings.values()
+                await mailroom.ask(msg=UpdateNet(),
+                                   sender=node,
+                                   recipients=siblings)
+
+                await mailroom.forward_tell(env, node)

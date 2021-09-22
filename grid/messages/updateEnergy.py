@@ -1,6 +1,6 @@
 from uuid import UUID
-from grid.utils.valueGetters import *
-from grid.messages import Message
+from grid.utils.valueGetters import getuuid, getint
+from grid.messages import Message, UpdateNet, SyncGrid
 
 
 class UpdateEnergy(Message):
@@ -33,3 +33,19 @@ class UpdateEnergy(Message):
             'production': self.production,
             'consumption': self.consumption,
         }
+
+    async def from_tell(self, node, mailroom):
+        siblings = node.siblings.values()
+        node.update_energy((self.production, self.consumption))
+
+        if len(siblings) < 1:
+            node.update_gridnet(self.production-self.consumption)
+
+        await mailroom.ask(msg=UpdateNet(),
+                           sender=node,
+                           recipients=siblings)
+
+        # TODO: Can remove this if we're going clockcycle route
+        await mailroom.tell(msg=SyncGrid(),
+                            sender=node,
+                            recipients=siblings)

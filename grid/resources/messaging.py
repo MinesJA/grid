@@ -1,5 +1,5 @@
 import falcon
-from grid.services.serializer import *
+from grid.serializer import *
 
 
 class Messaging():
@@ -10,6 +10,8 @@ class Messaging():
     async def on_get(self, req, resp):
         """Should call proper envelope action on node
         with deserialized envelope wrapping message
+
+        TODO: This should be a POST
 
         Args:
             req (Request): Falcon Request object

@@ -1,6 +1,7 @@
 from uuid import uuid1, UUID
 from grid.utils.valueGetters import *
-from grid.messages import Message
+from grid.messages import Message, UpdateNet, SyncGrid
+from grid.models.nodeProxy import NodeProxy
 
 
 class AddSibling(Message):
@@ -49,3 +50,44 @@ class AddSibling(Message):
             'siblingName': self.sibling_name,
             'siblingAddress': self.sibling_address
         }
+
+    async def from_tell(self, node, mailroom, env):
+        sibling = NodeProxy(self.sibling_id,
+                            self.sibling_name,
+                            self.sibling_address)
+
+        if sibling.id not in node.siblings:
+            msg = AddSibling.with_node(node)
+
+            await mailroom.ask(msg=msg,
+                               sender=node,
+                               recipients=[sibling])
+
+    async def from_ask(self, node, mailroom, env):
+        sibling = NodeProxy(self.sibling_id,
+                            self.sibling_name,
+                            self.sibling_address)
+
+        if sibling.id not in node.siblings:
+            node.add_sibling(sibling)
+
+            await mailroom.respond(ask=env,
+                                   msg=AddSibling.with_node(node),
+                                   sender=node)
+
+    async def from_response(self, node, mailroom, env):
+        sibling = NodeProxy(self.sibling_id,
+                            self.sibling_name,
+                            self.sibling_address)
+
+        if sibling.id not in node.siblings:
+            node.add_sibling(node.sibling)
+            mailroom.close_package(env)
+
+            await mailroom.ask(msg=UpdateNet(),
+                               sender=node,
+                               recipients=node.siblings.values())
+
+            await mailroom.tell(msg=SyncGrid(),
+                                sender=node,
+                                recipients=node.siblings.values())

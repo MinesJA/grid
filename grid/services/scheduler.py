@@ -1,44 +1,17 @@
+from grid.services import Service
 import time
-import datetime
 import threading
 import schedule
 
 
-class JobWrapper:
+class Scheduler(Service):
 
-    def __init__(self, interval, job):
+    def __init__(self, callable, interval):
+        self.callable = callable
         self.interval = interval
-        self.job = job
+        self.stop = None
 
-    def start(self):
-        self.interval.do(self.job)
-
-
-class Scheduler:
-
-    def __init__(self, jobs):
-        self.jobs = jobs
-        self.cease_run = None
-
-    @classmethod
-    def every(clss, interval, job):
-        times = [f":{x:02}" for x in range(60) if x % interval == 0]
-        jobs = [JobWrapper(schedule.every().minute.at(x), job)
-                for x in times]
-
-        return clss(jobs)
-
-    def background_job():
-        print(datetime.datetime.utcnow())
-
-    def schedule_jobs(self):
-        for job in self.jobs:
-            job.start()
-
-    def stop(self):
-        self.cease_run.set()
-
-    def start(self, interval=1):
+    async def __call__(self):
         """Continuously run, while executing pending jobs at each
         elapsed time interval.
         @return cease_continuous_run: threading. Event which can
@@ -49,18 +22,24 @@ class Scheduler:
         interval of one hour then your job won't be run 60 times
         at each interval but only once.
         """
-        self.schedule_jobs()
+        times = [f":{x:02}" for x in range(60) if x % self.interval == 0]
 
-        self.cease_run = threading.Event()
+        for time in times:
+            schedule.every().minute.at(time).do(self.callable)
+
+        self.should_stop = threading.Event()
 
         class ScheduleThread(threading.Thread):
             @ classmethod
             def run(cls):
                 while not self.cease_run.is_set():
                     schedule.run_pending()
-                    time.sleep(interval)
+                    time.sleep(self.interval)
 
         print("RUNNING clockcycle")
 
         continuous_thread = ScheduleThread()
         continuous_thread.start()
+
+    def exit(self):
+        self.should_stop.set()

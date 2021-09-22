@@ -1,9 +1,9 @@
 from uuid import uuid1
 from time import time
-from grid.messages import *
+from grid.messages import Message
 from uuid import UUID
-from grid.utils.strFormatter import *
-from grid.utils.valueGetters import *
+from grid.utils.strFormatter import format_attrs
+from grid.utils.valueGetters import getuuid, getstr, getfloat
 from typing import Type
 
 
@@ -42,6 +42,34 @@ class Envelope:
                 'msg': self.msg.serialize(),
                 'id': str(self.id),
                 'timestamp': str(self.timestamp)}
+
+    async def execute(self, node, mailroom):
+        """The main execute method for messages.
+
+        Messages have specific executable logic
+        depending on the envelope they are wrapped
+        in. This is the main entry point for that
+        logic. Ensures the right method is called
+        based on which envelope type calls it.
+
+        Args:
+            node ([type]): [description]
+            mailroom ([type]): [description]
+
+        Raises:
+            NameError: [description]
+        """
+        env_type = self.gettype()
+        method = f"from_{env_type.lower()}"
+        if hasattr(self.msg, method):
+            if callable(msg_func := getattr(self.msg, method)):
+                # TODO: Confirm we want to pass in self as best
+                #   way to get message func access to env details
+                await msg_func(node, mailroom, self)
+        else:
+            raise NameError(
+                f'Unrecognized method {method} called from {env_type}.'
+            )
 
     def gettype(self):
         return self.__class__.__name__
