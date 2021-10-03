@@ -70,9 +70,10 @@ class AddSibling(Message):
 
         if sibling.id not in node.siblings:
             node.add_sibling(sibling)
+            msg = AddSibling.with_node(node)
 
             await mailroom.respond(ask=env,
-                                   msg=AddSibling.with_node(node),
+                                   msg=msg,
                                    sender=node)
 
     async def from_response(self, node, mailroom, env):
@@ -84,7 +85,9 @@ class AddSibling(Message):
             node.add_sibling(node.sibling)
             mailroom.close_package(env)
 
-            await mailroom.ask(msg=UpdateNet(),
+            msg = UpdateNet()
+
+            await mailroom.ask(msg=msg,
                                sender=node,
                                recipients=node.siblings.values())
 

@@ -19,8 +19,15 @@ class UpdateNet(Message):
         self.nets = nets
 
     def reduce(self, responses, node=None):
-        # TODO: need to find way to standarize serialization
-        # of id.
+        """[summary]
+
+        Args:
+            responses ([type]): [description]
+            node ([type], optional): [description]. Defaults to None.
+
+        Returns:
+            [type]: [description]
+        """
         curr = {str(node.id): node.net} if node else {}
         for resp in responses.values():
             curr.update(resp.msg.nets)
@@ -54,6 +61,14 @@ class UpdateNet(Message):
         #   if it doesn't actually need to forward the response
         #   to determine whether to end it here or not (forward_response)
         #   will return nothing if it doesn't
+        
+        # SHOULD BE
+        # if env is done
+        #   upate grid net
+        # else:
+        #   forward_response
+
+
         msg = await mailroom.forward_response(resp=env, sender=node)
         if msg is not None:
 

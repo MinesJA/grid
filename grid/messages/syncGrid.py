@@ -19,11 +19,11 @@ class SyncGrid(Message):
 
     async def from_tell(self, node, mailroom, env):
         # TODO: Verify that package get's closed in mailroom
-        if isinstance(env, Tell):
-            if not mailroom.is_registered(env):
-                siblings = node.siblings.values()
-                await mailroom.ask(msg=UpdateNet(),
-                                   sender=node,
-                                   recipients=siblings)
 
-                await mailroom.forward_tell(env, node)
+        if mailroom.should_forward(env):
+            siblings = node.siblings.values()
+            await mailroom.ask(msg=UpdateNet(),
+                               sender=node,
+                               recipients=siblings)
+
+            await mailroom.forward_tell(env, node)

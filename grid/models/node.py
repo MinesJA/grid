@@ -1,9 +1,8 @@
 from grid.models.actor import Actor
-from grid.messages import *
-from grid.envelopes import *
-from grid.utils.strFormatter import *
+from grid.utils.strFormatter import format_attrs
 from termcolor import colored
-from typing import Tuple
+from typing import Tuple, Sequence
+from uuid import UUID
 
 
 class Node(Actor):
@@ -19,9 +18,9 @@ class Node(Actor):
         output of the entire grid. If no siblings, then net
         is simply the net output of the invididual node.
 
-        TODO: Need to rethink whole model of production, consumption, net values.
-            These values exist on a time scale. To have them be updated the way
-            they are makes no sense.
+        TODO: Need to rethink whole model of production, consumption, net
+        values. These values exist on a time scale. To have them be
+        updated the way they are makes no sense.
 
         Args:
             name (str): [description]
@@ -38,6 +37,19 @@ class Node(Actor):
         self._production = production
         self._consumption = consumption
         self._gridnet = production - consumption
+
+    # async def on_receive(self, env):
+    #     # Things you can do:
+    #     # Tell - forward, act
+    #     # Ask - forward, response, act
+    #     # Response - forward, act
+
+    #     actions = {
+    #         'Tell':
+    #         'Ask':
+    #         'Response':}
+
+    #     env.gettype()
 
     @property
     def gridnet(self):

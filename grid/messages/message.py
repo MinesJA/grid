@@ -5,6 +5,10 @@ class Message:
     def __init__(self, id: UUID = None):
         """Base class for Message objects.
 
+        TODO: from abc import ABC, abstractmethod
+            Should not implemented methods be abstract?
+
+
         Args:
             id (uuid1): original id of message
         """

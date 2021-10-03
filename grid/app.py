@@ -1,12 +1,10 @@
-import sys
 import asyncio
 import signal
 import aiohttp
-from dotenv import load_dotenv
+
 from grid.models.node import Node
 from grid.models.mailRoom import MailRoom
 from grid.services import InboundJob, OutboundJob, Server, Scheduler
-from grid.cli import parse_args
 
 # TODO: setup logging
 # create logging branch
@@ -15,25 +13,39 @@ from grid.cli import parse_args
 """
 Message System
 ==============
-Producer:
-    - Server
-    Receives http requests.
-    Converts requests to Envelope with Message.
-    Places Envelope in Inbox asyncio.Queue.
 
-Consumer:
-    - InboundJob
-    Consumes messages from inbox.
-    Calls execute method on Envelope which trigger
-    specific execution logic on message.
-    TODO: Rethink whos job it is to put outgoing
+Server (Producer)
+    - Ensures Envelopes/Messages are deserialized
+    - Routes deserialized messages to Messaging resource
+    - Messaging Resource drops envelops in asyncio.Inbox
+
+InboundJob (Consumer)
+    - Picks Envelopes from inbox.
+    - Routes Envelopes to proper executor...
+
+
+
+
+Producer (Server):
+    - Receives http requests.
+    - Converts requests to Envelope with Message.
+    - Places Envelope in Inbox asyncio.Queue.
+
+Consumer (InboundJob):
+    
+    
+
+    - If there is a result Envelope
+
+    TODO: Rethink whose job it is to put outgoing
         messages in Outbox queue.
         Maybe Message/Mailroom/Node should just be
         responsible for producing a message and
         give that back to InboundJob which puts it in
         Outbox queue.
+
     Mailroom puts result of processing in Outbox
-    asyncio.Queue as Envelope with Message
+        asyncio.Queue as Envelope with Message
 
     - OutboundJob
     Pulls from Outbox queue.
@@ -41,38 +53,29 @@ Consumer:
     as http requests
 """
 
-load_dotenv()
-
-INBOX = asyncio.Queue()
-OUTBOX = asyncio.Queue()
-SESSION = aiohttp.ClientSession()
-
 
 def replace_with_callable():
     # TODO: Implement scheduler callable
     pass
 
 
-# TODO: Rethink this. Right now, parse args runs and then
-#   assumption is server starts. Python app should run arg
-#   parse, which should determine what to do (start server,
-#   other stuff, etc.)
-args = parse_args(sys.arv[1:])
+def start_application(args):
+    INBOX = asyncio.Queue()
+    OUTBOX = asyncio.Queue()
+    SESSION = aiohttp.ClientSession()
+    Executor
 
-node = Node(name=args.name,
-            id=args.id,
-            host=args.host,
-            port=args.port)
+    mailroom = MailRoom(outbox=OUTBOX)
+    node = Node(name=args.name,
+                id=args.id,
+                host=args.host,
+                port=args.port)
 
-mailroom = MailRoom(outbox=OUTBOX)
-
-loop = asyncio.get_event_loop()
-
-if __name__ == "__main__":
     print(f'Grid:   Starting Grid')
     print(f'Grid:   Created Node: {node.id}')
 
-    # TODO: Figure out where all these setup should live...
+    loop = asyncio.get_event_loop()
+
     # TODO: Should these be called jobs?
     services = [
         InboundJob(INBOX, mailroom, node),
@@ -91,7 +94,7 @@ if __name__ == "__main__":
         loop.add_signal_handler(sig, handle_exit, *services)
 
     loop.run_until_complete(
-        asyncio.gather(*services, loop=loop)
+        asyncio.gather(*tasks, loop=loop)
     )
 
     print(f'GRID:   Successfully exited Grid')

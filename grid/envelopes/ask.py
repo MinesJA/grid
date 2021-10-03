@@ -4,13 +4,15 @@ from uuid import UUID
 from grid.utils.strFormatter import format_attrs
 from grid.utils.valueGetters import getint, getuuid
 from typing import Type
+from grid.envelopes import Response
+from grid.models.actor import Actor
 
 
 class Ask(Envelope):
 
     def __init__(self,
                  to: str,
-                 msg: Type[Message],
+                 msg: Message,
                  return_id: int,
                  reqid: UUID,
                  master_reqid: UUID = None,
@@ -33,6 +35,17 @@ class Ask(Envelope):
         self.return_id = return_id
         self.reqid = reqid
         self.master_reqid = master_reqid if master_reqid else reqid
+
+    def build_response(self, msg: Message, node: Actor):
+        sibling = node.siblings.get(self.return_id)
+
+        if not sibling:
+            raise ValueError(f'{self.return_id} not a recognized sibling')
+
+        return Response(to=sibling.address,
+                        msg=msg,
+                        reqid=self.reqid,
+                        master_reqid=self.master_reqid)
 
     @classmethod
     def deserialize(clss, data: dict, msg: Type[Message]):

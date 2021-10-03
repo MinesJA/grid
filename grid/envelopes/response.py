@@ -1,4 +1,4 @@
-from grid.envelopes import Envelope, Ask
+from grid.envelopes import Envelope
 from grid.messages import Message
 from uuid import UUID
 from grid.utils.strFormatter import format_attrs
@@ -18,18 +18,6 @@ class Response(Envelope):
         super().__init__(to, msg, id, timestamp)
         self.reqid = reqid
         self.master_reqid = master_reqid if master_reqid else reqid
-
-    @classmethod
-    def to_ask(clss, ask: Ask, msg, node):
-        sibling = node.siblings.get(ask.return_id)
-
-        if not sibling:
-            raise ValueError(f'{ask.return_id} not a recognize sibling')
-
-        return clss(to=sibling.address,
-                    msg=msg,
-                    reqid=ask.reqid,
-                    master_reqid=ask.master_reqid)
 
     @classmethod
     def deserialize(clss, data: dict, msg: Type[Message]):
